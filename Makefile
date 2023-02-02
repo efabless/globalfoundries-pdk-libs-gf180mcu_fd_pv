@@ -28,8 +28,12 @@ KLAYOUT_TESTS := klayout/drc/testing/
 include third_party/make-env/conda.mk
 
 # Lint python code
-lint: | $(CONDA_ENV_PYTHON)
+lint_python: | $(CONDA_ENV_PYTHON)
 	@$(IN_CONDA_ENV) flake8 .
+
+# Lint ruby code
+lint_ruby:
+	@$(IN_CONDA_ENV) rubocop .
 
 ################################################################################
 ## DRC Regression section
