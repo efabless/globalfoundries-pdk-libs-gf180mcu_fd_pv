@@ -39,7 +39,7 @@ lint_ruby:| $(CONDA_ENV_PYTHON)
 	@$(IN_CONDA_ENV) rubocop_dir=`dirname $$rubocop`
 	@$(IN_CONDA_ENV) echo $$rubocop_dir
 	@$(IN_CONDA_ENV) ln -s ../../../bin/ruby $$rubocop_dir/ruby
-	@$(IN_CONDA_ENV) rubocop .
+	@$(IN_CONDA_ENV) rubocop klayout/drc/rule_decks/*.drc
 
 ################################################################################
 ## DRC Regression section
