@@ -34,8 +34,8 @@ lint_python: | $(CONDA_ENV_PYTHON)
 # Lint ruby code
 lint_ruby:| $(CONDA_ENV_PYTHON)
 	@$(IN_CONDA_ENV) gem install rubocop
-	@$(IN_CONDA_ENV) rub_dir=`dirname $(which ruby)`
-	@$(IN_CONDA_ENV) ln -s ../../../bin/ruby rub_dir
+	@$(IN_CONDA_ENV) rubocop_dir=`dirname $(which rubocop)`
+	@$(IN_CONDA_ENV) ln -s ../../../bin/ruby $(rubocop_dir)
 	@$(IN_CONDA_ENV) rubocop .
 
 ################################################################################
