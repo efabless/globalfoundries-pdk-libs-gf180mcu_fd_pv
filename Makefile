@@ -25,6 +25,11 @@ ENVIRONMENT_FILE := pdk_regression.yml
 # Path to regression
 KLAYOUT_TESTS := klayout/drc/testing/
 
+
+rubocop_path ?= $(abspath $(shell which rubocop))
+rubocop_dir	 ?= $(abspath $(shell dirname $(rubocop_path)))
+
+
 include third_party/make-env/conda.mk
 
 # Lint python code
@@ -34,7 +39,6 @@ lint_python: | $(CONDA_ENV_PYTHON)
 # Lint ruby code
 lint_ruby:| $(CONDA_ENV_PYTHON)
 	@$(IN_CONDA_ENV) gem install rubocop
-	@$(IN_CONDA_ENV) rubocop_dir=`dirname $(which rubocop)`
 	@$(IN_CONDA_ENV) ln -s ../../../bin/ruby $(rubocop_dir)
 	@$(IN_CONDA_ENV) rubocop .
 
