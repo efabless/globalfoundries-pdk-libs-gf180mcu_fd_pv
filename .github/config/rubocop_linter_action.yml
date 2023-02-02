@@ -20,7 +20,7 @@ versions:
 # Default: nil
 # Note: This does not need to be filled out for RuboCop to still find your config.
 # Resource: https://rubocop.readthedocs.io/en/stable/configuration/
-rubocop_config_path: ".rubocop"
+rubocop_config_path: ".rubocop.yaml"
 
 # Run all cops enabled by configuration except this list.
 # Valid options: list of valid cop(s) and/or departments.
@@ -55,3 +55,9 @@ bundle: false
 # Valid options: 'modified'
 # Default: nil
 check_scope: "modified"
+
+AllCops:
+  Include:
+    - '**/*.rb'
+    - '**/*.drc'
+

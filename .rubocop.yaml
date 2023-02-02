@@ -9,13 +9,6 @@ inputs:
     description: "Return exit code if linter returns some failures."
     required: false
     default: "true"
-runs:
-  using: "docker"
-  image: "Dockerfile"
-  args:
-    - ${{ inputs.action_config_path }}
+
 env:
   GITHUB_TOKEN: secrets.GITHUB_TOKEN
-branding:
-  icon: "code"
-  color: "red"

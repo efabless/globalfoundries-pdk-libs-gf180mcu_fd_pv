@@ -32,7 +32,10 @@ lint_python: | $(CONDA_ENV_PYTHON)
 	@$(IN_CONDA_ENV) flake8 .
 
 # Lint ruby code
-lint_ruby:
+lint_ruby:| $(CONDA_ENV_PYTHON)
+	@gem install rubocop
+	@rub_dir=`dirname $(which ruby)`
+	@ln -s ../../../bin/ruby rub_dir
 	@$(IN_CONDA_ENV) rubocop .
 
 ################################################################################
