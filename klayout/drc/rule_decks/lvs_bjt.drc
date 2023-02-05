@@ -14,6 +14,20 @@
 # limitations under the License.
 ################################################################################################
 
-exec_end_time = Time.now
-run_time = exec_end_time - exec_start_time
-logger.info(format('%<table>s DRC Total Run time %<time>f seconds', table: table_name, time: run_time))
+if FEOL
+  #================================================
+  #--------------------LVS_BJT---------------------
+  #================================================
+
+  vnpn_e = ncomp.interacting(lvs_bjt).inside(dnwell)
+  vpnp_e = pcomp.inside(nwell).interacting(lvs_bjt)
+  # Rule LVS_BJT.1: Minimum LVS_BJT enclosure of NPN or PNP Emitter COMP layers
+  logger.info('Executing rule LVS_BJT.1')
+  lvs_l1 = vnpn_e.or(vpnp_e).not_inside(lvs_bjt)
+  lvs_l1.output('LVS_BJT.1', 'LVS_BJT.1 : Minimum LVS_BJT enclosure of NPN or PNP Emitter COMP layers')
+  lvs_l1.forget
+
+  vnpn_e.forget
+
+  vpnp_e.forget
+end
