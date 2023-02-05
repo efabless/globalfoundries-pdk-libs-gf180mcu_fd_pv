@@ -25,11 +25,21 @@ ENVIRONMENT_FILE := pdk_regression.yml
 # Path to regression
 KLAYOUT_TESTS := klayout/drc/testing/
 
+
 include third_party/make-env/conda.mk
 
 # Lint python code
-lint: | $(CONDA_ENV_PYTHON)
+lint_python: | $(CONDA_ENV_PYTHON)
 	@$(IN_CONDA_ENV) flake8 .
+
+# Lint ruby code
+lint_ruby:| $(CONDA_ENV_PYTHON)
+	@$(IN_CONDA_ENV) gem install rubocop
+	@$(IN_CONDA_ENV) rubocop=`which rubocop`
+	@$(IN_CONDA_ENV) rubocop_dir=`dirname $$rubocop`
+	@$(IN_CONDA_ENV) echo $$rubocop_dir
+	@$(IN_CONDA_ENV) ln -s ../../../bin/ruby $$rubocop_dir/ruby
+	@$(IN_CONDA_ENV) rubocop .
 
 ################################################################################
 ## DRC Regression section
