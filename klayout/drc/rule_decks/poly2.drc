@@ -123,7 +123,7 @@ if FEOL
   comp_pl.forget
 
   # Rule PL.6: 90 degree bends on the COMP are not allowed.
-  logger.info("Executing rule PL.6")
+  logger.info('Executing rule PL.6')
   pl6_l1 = poly2.corners(90.0).sized(0.1).or(poly2.corners(-90.0).sized(0.1)).not(ymtp_mk).inside(comp.not(ymtp_mk))
   pl6_l1.output('PL.6', 'PL.6 : 90 degree bends on the COMP are not allowed.')
   pl6_l1.forget
