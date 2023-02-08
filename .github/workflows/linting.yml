@@ -21,8 +21,6 @@ on:
 jobs:
   lint_python:
     runs-on: ubuntu-latest
-    strategy:
-      max-parallel: 12
     steps:
       - uses: actions/checkout@v3
         with:
@@ -33,12 +31,19 @@ jobs:
 
   lint_ruby:
     runs-on: ubuntu-latest
+<<<<<<< HEAD
     strategy:
       max-parallel: 12
+=======
+>>>>>>> lint_ruby
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: 'recursive'
       - name: Lint with rubocop
         run: |
+<<<<<<< HEAD
           make lint_ruby
+=======
+          make lint_ruby
+>>>>>>> lint_ruby

@@ -35,10 +35,14 @@ lint_python: | $(CONDA_ENV_PYTHON)
 # Lint ruby code
 lint_ruby:| $(CONDA_ENV_PYTHON)
 	@$(IN_CONDA_ENV) gem install rubocop
+<<<<<<< HEAD
 	@$(IN_CONDA_ENV) rubocop=`which rubocop`
 	@$(IN_CONDA_ENV) rubocop_dir=`dirname $$rubocop`
 	@$(IN_CONDA_ENV) echo $$rubocop_dir
 	@$(IN_CONDA_ENV) ln -s ../../../bin/ruby $$rubocop_dir/ruby
+=======
+	@ln -s $$CONDA_PREFIX/bin/ruby $$CONDA_PREFIX/share/rubygems/bin/ruby
+>>>>>>> lint_ruby
 	@$(IN_CONDA_ENV) rubocop .
 
 ################################################################################
