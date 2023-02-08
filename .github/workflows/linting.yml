@@ -21,8 +21,6 @@ on:
 jobs:
   lint_python:
     runs-on: ubuntu-latest
-    strategy:
-      max-parallel: 12
     steps:
       - uses: actions/checkout@v3
         with:
@@ -33,8 +31,6 @@ jobs:
 
   lint_ruby:
     runs-on: ubuntu-latest
-    strategy:
-      max-parallel: 12
     steps:
       - uses: actions/checkout@v3
         with:
