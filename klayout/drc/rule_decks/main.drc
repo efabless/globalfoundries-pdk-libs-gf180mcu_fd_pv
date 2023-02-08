@@ -61,6 +61,10 @@ end
 #================================================
 logger.info('Evaluate switches.')
 
+def bool_check?(obj)
+  obj.to_s.downcase == 'true'
+end
+
 # connectivity rules
 if $conn_drc == 'true'
   CONNECTIVITY_RULES = $conn_drc
@@ -71,29 +75,17 @@ else
 end
 
 # WEDGE
-WEDGE = if $wedge == 'false'
-          $wedge
-        else
-          'true'
-        end
+WEDGE = bool_check?($wedge)
 
 logger.info("Wedge enabled: #{WEDGE}")
 
 # BALL
-BALL = if $ball == 'false'
-         $ball
-       else
-         'true'
-       end
+BALL = bool_check?($ball)
 
 logger.info("Ball enabled: #{BALL}")
 
 # GOLD
-GOLD = if $gold == 'false'
-         $gold
-       else
-         'true'
-       end
+GOLD = bool_check?($gold)
 
 logger.info("Gold enabled: #{GOLD}")
 
@@ -153,22 +145,14 @@ METAL_LEVEL = $metal_level || '5LM'
 logger.info("METAL_STACK Selected is #{METAL_LEVEL}")
 
 # FEOL
-if $feol == 'false'
-  FEOL = $feol
-  logger.info('FEOL is disabled.')
-else
-  FEOL = 'true'.freeze
-  logger.info('FEOL is enabled.')
-end
+FEOL = bool_check?($feol)
+
+logger.info("FEOL enabled: #{FEOL}")
 
 # BEOL
-if $beol == 'false'
-  BEOL = $beol
-  logger.info('BEOL is disabled.')
-else
-  BEOL = 'true'.freeze
-  logger.info('BEOL is enabled.')
-end
+BEOL = bool_check?($beol)
+
+logger.info("BEOL enabled: #{BEOL}")
 
 #================================================
 #------------- LAYERS DEFINITIONS ---------------
