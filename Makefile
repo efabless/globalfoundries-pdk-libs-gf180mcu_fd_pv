@@ -74,7 +74,7 @@ test-LVS-main: | $(CONDA_ENV_PYTHON)
 .ONESHELL:
 test-LVS-% : | $(CONDA_ENV_PYTHON)
 	@which python3
-	@$(IN_CONDA_ENV) python3 $(KLAYOUT_LVS_TESTS)/run_regression.py --device=$*
+	@$(IN_CONDA_ENV) cd $(KLAYOUT_LVS_TESTS) && make test-LVS-$*
 
 #=================================
 # -------- test-LVS-switch -------
