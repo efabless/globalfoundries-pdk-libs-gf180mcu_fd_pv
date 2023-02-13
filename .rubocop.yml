@@ -37,6 +37,18 @@ Metrics/BlockNesting:
   Description:  Avoid more than 3 levels of block nesting.
   Enabled: false
 
+Metrics/CyclomaticComplexity:
+  Description:  Cyclomatic complexity for element is too high.
+  Enabled: false
+
+Metrics/PerceivedComplexity:
+  Description:  Perceived complexity for element is too high.
+  Enabled: false
+
+Metrics/ParameterLists:
+  Description:  Avoid parameter lists longer than 5 parameters.
+  Enabled: false
+  
 AllCops:
   Exclude:
     - 'env/**/*'

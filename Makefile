@@ -25,6 +25,7 @@ ENVIRONMENT_FILE := pdk_regression.yml
 # Path to regression
 KLAYOUT_TESTS := klayout/drc/testing/
 
+KLAYOUT_LVS_TESTS := klayout/lvs/testing/
 
 include third_party/make-env/conda.mk
 
@@ -63,10 +64,20 @@ test-DRC-switch: | $(CONDA_ENV_PYTHON)
 ################################################################################
 ## LVS Regression section
 ################################################################################
-# LVS main testing
+#=================================
+# ----- test-LVS_regression ------
+#=================================
+.ONESHELL:
 test-LVS-main: | $(CONDA_ENV_PYTHON)
-	@$(IN_CONDA_ENV) klayout -v
+	@$(IN_CONDA_ENV) cd $(KLAYOUT_LVS_TESTS) && make test-LVS-main
 
-# LVS main testing
+.ONESHELL:
+test-LVS-% : | $(CONDA_ENV_PYTHON)
+	@which python3
+	@$(IN_CONDA_ENV) python3 $(KLAYOUT_LVS_TESTS)/run_regression.py --device=$*
+
+#=================================
+# -------- test-LVS-switch -------
+#=================================
 test-LVS-switch: | $(CONDA_ENV_PYTHON)
-	@$(IN_CONDA_ENV) klayout -v
+	@$(IN_CONDA_ENV) cd $(KLAYOUT_LVS_TESTS) && make test-LVS-switch

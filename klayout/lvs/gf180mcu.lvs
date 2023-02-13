@@ -51,7 +51,7 @@ if $report
   report_lvs($report)
 else
   layout_dir = Pathname.new(RBA::CellView.active.filename).parent.realpath
-  report_path = layout_dir.join(source.cell_name+".lvsdb").to_s
+  report_path = layout_dir.join("#{source.cell_name}.lvsdb").to_s
   logger.info("GF180MCU Klayout LVS runset output at default location: #{source.cell_name}.lvsdb")
   report_lvs($report_path)
 end
