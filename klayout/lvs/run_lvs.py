@@ -147,7 +147,7 @@ def main():
     # Generate databases
     if args["--design"]:
         path = args["--design"]
-        if args["--design"]:
+        if args["--net"]:
             file_name = args["--net"].split(".")
         else:
             print(

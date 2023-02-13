@@ -70,49 +70,11 @@ test-LVS-gf180mcu_fd_sc_mcu9t5v0: Add_run-dir
 #=================================
 
 .ONESHELL:
-test-LVS-main: print_klayout_version test-LVS_MOS  test-LVS_BJT  test-LVS_DIODE  test-LVS_RES  test-LVS_MIMCAP  test-LVS_MOSCAP  test-LVS_MOS-SAB
+test-LVS-main: print_klayout_version test-LVS-MOS  test-LVS-BJT  test-LVS-DIODE  test-LVS-RES  test-LVS-MIMCAP  test-LVS-MOSCAP  test-LVS-MOS_SAB
 
 .ONESHELL:
-test-LVS_MOS: Add_run-dir
-	@cd $(Testing_DIR)
-	@mkdir -p $(run_folder)/main/LVS_MOS
-	@ python3 run_regression.py  --run_dir=$(run_folder)/main  --device=MOS |& tee $(run_folder)/main/LVS_MOS/results.log
-
-.ONESHELL:
-test-LVS_BJT: Add_run-dir
-	@cd $(Testing_DIR)
-	@mkdir -p $(run_folder)/main/LVS_BJT
-	@ python3 run_regression.py  --run_dir=$(run_folder)/main --device=BJT  |& tee $(run_folder)/main/LVS_BJT/results.log
-
-.ONESHELL:
-test-LVS_DIODE: Add_run-dir
-	@cd $(Testing_DIR)
-	@mkdir -p $(run_folder)/main/LVS_DIODE
-	@ python3 run_regression.py  --run_dir=$(run_folder)/main --device=DIODE |& tee $(run_folder)/main/LVS_DIODE/results.log
-
-.ONESHELL:
-test-LVS_RES: Add_run-dir
-	@cd $(Testing_DIR)
-	@mkdir -p $(run_folder)/main/LVS_RES
-	@ python3 run_regression.py  --run_dir=$(run_folder)/main --device=RES |& tee $(run_folder)/main/LVS_RES/results.log
-
-.ONESHELL:
-test-LVS_MIMCAP: Add_run-dir
-	@cd $(Testing_DIR)
-	@mkdir -p $(run_folder)/main/LVS_MIMCAP
-	@ python3 run_regression.py  --run_dir=$(run_folder)/main --device=MIMCAP |& tee $(run_folder)/main/LVS_MIMCAP/results.log
-
-.ONESHELL:
-test-LVS_MOSCAP: Add_run-dir
-	@cd $(Testing_DIR)
-	@mkdir -p $(run_folder)/main/LVS_MOSCAP
-	@ python3 run_regression.py  --run_dir=$(run_folder)/main --device=MOSCAP |& tee $(run_folder)/main/LVS_MOSCAP/results.log
-
-.ONESHELL:
-test-LVS_MOS-SAB: Add_run-dir
-	@cd $(Testing_DIR)
-	@mkdir -p $(run_folder)/main/LVS_MOS-SAB
-	@ python3 run_regression.py  --run_dir=$(run_folder)/main --device=MOS-SAB |& tee $(run_folder)/main/LVS_MOS-SAB/results.log
+test-LVS-%:
+	@ python3 run_regression.py --device=$*
 
 #=================================
 # -------- test-LVS-switch -------

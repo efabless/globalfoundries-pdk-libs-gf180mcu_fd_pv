@@ -16,19 +16,21 @@
 
 Usage:
     run_regression.py (--help| -h)
-    run_regression.py (--run_dir=<out_dir>) [--num_cores=<num>] [--device=<device_name>]
+    run_regression.py (--device=<device_name>) [--mp=<num>] [--run_name=<run_name>]
 
 Options:
     --help -h                 Print this help message.
-    --run_dir=<out_dir>       Selecting your output path.
-    --num_cores=<num>         Number of cores to be used by LVS checker
-    --device=<device_name>    Selecting device option. Allowed values (MOS, BJT, DIODE, RES, MIMCAP, MOSCAP, MOS-SAB). [default: ALL]
+    --device=<device_name>    Name of device that we want to run regression for, Allowed values (MOS, BJT, DIODE, RES, MIMCAP, MOSCAP, MOS_SAB).
+    --mp=<num>                The number of threads used in run.
+    --run_name=<run_name>     Select your run name.
 """
 
+from datetime import datetime
 from docopt import docopt
 import os
 import logging
 from subprocess import check_call
+import glob
 
 
 def check_klayout_version():
@@ -60,103 +62,91 @@ def check_klayout_version():
             exit(1)
 
 
-def lvs_check(table, files):
+def lvs_check(output_path, table, devices):
 
+    # counters
     pass_count = 0
     fail_count = 0
 
-    logging.info("================================================")
-    logging.info("{:-^48}".format(table.upper()))
-    logging.info("================================================ \n")
-
-    # Get manual test cases
-    x = os.popen("find man_testing/ -name *.gds").read()
-    man_testing = x.split("\n")[:-1]
-
     # Generate databases
-    for file in files:
-        layout = file[0]
+    for device in devices:
+        layout = device[0]
 
         # Get switches
         if layout == "sample_ggnfet_06v0_dss":
             switches = " -rd lvs_sub=sub!"
         else:
             switches = " -rd lvs_sub=vdd!"
-        if len(file) > 1:
-            switches = file[1] + switches
 
-        # Check if file is mosfet or esd
+        if len(device) > 1:
+            switches = device[1] + switches
+
+        # Check if device is mosfet or esd
         if "sample" in layout:
             net = f"{layout}.src"
         else:
             net = layout
 
-        if os.path.exists(f"testcases/{net}.cdl"):
-            # Get netlist with $ and ][
-            with open(f"testcases/{net}.cdl", "r") as file:
-                spice_netlist = file.read()
+        if os.path.exists(f"testcases/{layout}.gds") and os.path.exists(f"testcases/{net}.cdl"):
+            layout_path = f"testcases/{layout}.gds"
+            netlist_path = f"testcases/{net}.cdl"
+        elif os.path.exists(f"man_testcases/{layout}.gds") and os.path.exists(f"man_testcases/{net}.cdl"):
+            layout_path = f"man_testcases/{layout}.gds"
+            netlist_path = f"man_testcases/{net}.cdl"
+        else:
+            logging.error(f"{net} testcase is not exist, please recheck")
+            exit(1)
 
-            # Replace the target string
-            spice_netlist = spice_netlist.replace("$SUB=", "")
-            spice_netlist = spice_netlist.replace("$", "")
-            spice_netlist = spice_netlist.replace("[", "")
-            spice_netlist = spice_netlist.replace("]", "")
+        # Get netlist without $ and ][
+        with open(netlist_path, "r") as file:
+            spice_netlist = file.read()
 
-            # Write the file out again
-            with open(f"testcases/{layout}_generated.cdl", "w") as file:
-                file.write(spice_netlist)
+        # Replace the target string
+        spice_netlist = spice_netlist.replace("$SUB=", "")
+        spice_netlist = spice_netlist.replace("$", "")
+        spice_netlist = spice_netlist.replace("[", "")
+        spice_netlist = spice_netlist.replace("]", "")
 
-        result = os.popen(
-            f"klayout -b -r ../gf180mcu.lvs -rd input=testcases/{layout}.gds -rd report={layout}.lvsdb -rd schematic={layout}_generated.cdl -rd target_netlist={layout}_extracted.cir -rd thr={workers_count} {switches}"
-        ).read()
-
-        # moving all reports to run dir
-        out_dir = arguments["--run_dir"]
+        # Cloning run files into run dir
         device_dir = table.split(" ")[0]
+        os.makedirs(f"{output_path}/LVS_{device_dir}", exist_ok=True)
         check_call(
-            f"mv -f testcases/{layout}.lvsdb testcases/{layout}_extracted.cir testcases/{layout}_generated.cdl {out_dir}/LVS_{device_dir}/",
+            f"cp -f {layout_path} {netlist_path} {output_path}/LVS_{device_dir}/",
             shell=True,
         )
 
-        if "INFO : Congratulations! Netlists match." in result:
-            logging.info(f"Extraction of {layout} is passed")
-            pass_count = pass_count + 1
+        # Write clean netlist in run folder
+        final_layout = f"{output_path}/LVS_{device_dir}/{layout}.gds"
+        final_netlist = f"{output_path}/LVS_{device_dir}/{net}_generated.cdl"
+        pattern_log = f"{output_path}/LVS_{device_dir}/{layout}.log"
+
+        with open(final_netlist, "w") as file:
+            file.write(spice_netlist)
+
+        # command to run drc
+        call_str = f"klayout -b -r ../gf180mcu.lvs -rd input={final_layout} -rd report={layout}.lvsdb -rd schematic={layout}_generated.cdl -rd target_netlist={layout}_extracted.cir {switches} > {pattern_log} 2>&1"
+
+    # Starting klayout run
+        try:
+            check_call(call_str, shell=True)
+        except Exception as e:
+            logging.error("%s generated an exception: %s" % (final_layout, e))
+            raise
+
+        if os.path.exists(pattern_log):
+            with open(pattern_log) as result_file:
+                result = result_file.read()
+            if "Congratulations! Netlists match" in result:
+                logging.info(f"{layout} testcase passed")
+                pass_count += 1
+            else:
+                fail_count += 1
+                logging.error(f"{layout} testcase failed.")
+                logging.error(f"Please recheck {layout_path} file.")
+                exit(1)
         else:
-            pass_before = pass_count
-            fail_before = fail_count
-            logging.error(
-                f"Extraction of {layout} in fab provided test case is failed."
-            )
-            for file in man_testing:
-                file_clean = file.split("/")[-1].replace(".gds", "")
-                if layout == file_clean:
-                    result = os.popen(
-                        f"klayout -b -r ../gf180mcu.lvs -rd input={file} -rd report={layout}.lvsdb -rd schematic={layout}.cdl -rd target_netlist={layout}_extracted.cir -rd thr={workers_count} {switches}"
-                    ).read()
-
-                    dir_clean = file.replace(".gds", "")
-                    check_call(
-                        f"mv -f {dir_clean}.lvsdb {dir_clean}_extracted.cir {out_dir}/LVS_{device_dir}/",
-                        shell=True,
-                    )
-
-                    if "INFO : Congratulations! Netlists match." in result:
-                        logging.info(
-                            f"Extraction of {layout} in manual test case is passed"
-                        )
-                        pass_count = pass_count + 1
-                        break
-                    else:
-                        logging.error(
-                            f"Extraction of {layout} in manual test case is failed"
-                        )
-                        fail_count = fail_count + 1
-                        break
-            if (pass_before == pass_count) and (fail_before == fail_count):
-                logging.error(
-                    f"{layout} is not in manual test case, Then extraction of {layout} is failed"
-                )
-                fail_count = fail_count + 1
+            logging.error("Klayout LVS run failed")
+            exit(1)
 
     logging.info("==================================")
     logging.info(f"NO. OF PASSED {table} : {pass_count}")
@@ -169,21 +159,29 @@ def lvs_check(table, files):
         return True
 
 
-def main():
+def main(output_path, device):
+    """
+    Main Procedure.
+
+    This function is the main execution procedure
+
+    Parameters
+    ----------
+    output_path : str
+        Path string to the location of the output results of the run.
+    device : str or None
+        Name of device that we want to run regression for.
+    Returns
+    -------
+    bool
+        If all regression passed, it returns true. If any of the rules failed it returns false.
+    """
 
     ## Check Klayout version
     check_klayout_version()
 
-    # Check out_dir existance
-    out_dir = arguments["--run_dir"]
-    if os.path.exists(out_dir) and os.path.isdir(out_dir):
-        pass
-    else:
-        logging.error("This run directory doesn't exist. Please recheck.")
-        exit()
-
-    # MOSFET
-    mosfet_files = [
+    # MOSFET devices
+    mos_devices = [
         ["sample_pfet_06v0_dn"],
         ["sample_nfet_10v0_asym"],
         ["sample_nfet_03v3"],
@@ -200,7 +198,7 @@ def main():
     ]
 
     # BJT
-    bjt_files = [
+    bjt_devices = [
         ["npn_10p00x10p00"],
         ["npn_05p00x05p00"],
         ["npn_00p54x16p00"],
@@ -214,7 +212,7 @@ def main():
     ]
 
     # Diode
-    diode_files = [
+    diode_devices = [
         ["diode_nd2ps_03v3"],
         ["diode_nd2ps_03v3_dn"],
         ["diode_nd2ps_06v0"],
@@ -233,7 +231,7 @@ def main():
     ]
 
     # Resistor
-    resistor_files = [
+    res_devices = [
         ["pplus_u"],
         ["nplus_s"],
         ["pplus_u_dw"],
@@ -274,7 +272,7 @@ def main():
     ]
 
     # MIM Capacitor
-    mim_files = [
+    mimcap_devices = [
         ["cap_mim_1f0_m2m3_noshield", "-rd mim_option=A -rd mim_cap=1"],
         ["cap_mim_1f5_m2m3_noshield", "-rd mim_option=A -rd mim_cap=1.5"],
         ["cap_mim_2f0_m2m3_noshield", "-rd mim_option=A -rd mim_cap=2"],
@@ -290,7 +288,7 @@ def main():
     ]
 
     # MOS Capacitor
-    moscap_files = [
+    moscap_devices = [
         ["cap_pmos_03v3_b"],
         ["cap_nmos_03v3_b"],
         ["cap_nmos_03v3"],
@@ -306,7 +304,7 @@ def main():
     ]
 
     # ESD (SAB MOSFET)
-    esd_files = [
+    mos_sab_devices = [
         ["sample_pfet_05v0_dss"],
         ["sample_nfet_05v0_dss"],
         ["sample_pfet_03v3_dn_dss"],
@@ -322,60 +320,59 @@ def main():
     ]
 
     # eFuse
-    efuse_files = [["efuse"]]
+    efuse_devices = [["efuse"]]
 
-    logging.info("================================")
-    logging.info("Running LVS regression")
-    logging.info("================================\n")
+    all_devices = {"MOS": mos_devices, "BJT": bjt_devices, "DIODE": diode_devices,
+                   "RES": res_devices, "MIMCAP": mimcap_devices, "MOSCAP": moscap_devices,
+                   "MOS_SAB": mos_sab_devices, "EFUSE": efuse_devices}
 
-    status = True
-    if arguments["--device"] == "MOS":
-        status = lvs_check("MOS DEVICES", mosfet_files)
-    elif arguments["--device"] == "BJT":
-        status = lvs_check("BJT DEVICES", bjt_files)
-    elif arguments["--device"] == "DIODE":
-        status = lvs_check("DIODE DEVICES", diode_files)
-    elif arguments["--device"] == "RES":
-        status = lvs_check("RES DEVICES", resistor_files)
-    elif arguments["--device"] == "MIMCAP":
-        status = lvs_check("MIMCAP DEVICES", mim_files)
-    elif arguments["--device"] == "MOSCAP":
-        status = lvs_check("MOSCAP DEVICES", moscap_files)
-    elif arguments["--device"] == "MOS-SAB":
-        status = lvs_check("MOS-SAB DEVICES", esd_files)
-    elif arguments["--device"] == "EFUSE":
-        status = lvs_check("EFUSE DEVICES", efuse_files)
+    # Starting LVS regression
+    run_status = False
+
+    if device in all_devices :
+        logging.info(f"Running Global Foundries 180nm MCU LVS regression on {device}")
+        run_status = lvs_check(output_path, f"{device} DEVICES", all_devices[device])
     else:
-        status = lvs_check("MOS DEVICES", mosfet_files)
-        status = lvs_check("BJT DEVICES", bjt_files)
-        status = lvs_check("DIODE DEVICES", diode_files)
-        status = lvs_check("RES DEVICES", resistor_files)
-        status = lvs_check("MIM DEVICES", mim_files)
-        status = lvs_check("MOSCAP DEVICES", moscap_files)
-        status = lvs_check("ESD DEVICES", esd_files)
-        status = lvs_check("EFUSE DEVICES", efuse_files)
+        logging.error("Allowed devices are (MOS, BJT, DIODE, RES, MIMCAP, MOSCAP, MOS_SAB) only")
+        exit(1)
 
-    if not status:
-        logging.error(" There are failed cases will exit with 1.")
+    if run_status:
+        logging.info("LVS regression test completed successfully.")
+    else:
+        logging.error("LVS regression test failed.")
         exit(1)
 
 
 if __name__ == "__main__":
 
-    # Args
-    arguments = docopt(__doc__, version="LVS REGRESSION: 0.1")
-    workers_count = (
-        os.cpu_count() * 2
-        if arguments["--num_cores"] is None
-        else int(arguments["--num_cores"])
-    )
+    # docopt reader
+    args = docopt(__doc__, version="LVS Regression: 0.2")
+
+    # arguments
+    run_name = args["--run_name"]
+    device = args["--device"]
+
+    if run_name is None:
+        # logs format
+        run_name = datetime.utcnow().strftime("unit_tests_%Y_%m_%d_%H_%M_%S")
+
+    # Paths of regression dirs
+    testing_dir = os.path.dirname(os.path.abspath(__file__))
+    output_path = os.path.join(testing_dir, run_name)
+
+    # Creating output dir
+    os.makedirs(output_path, exist_ok=True)
 
     # logs format
     logging.basicConfig(
         level=logging.DEBUG,
+        handlers=[
+            logging.FileHandler(os.path.join(output_path, "{}.log".format(run_name))),
+            logging.StreamHandler(),
+        ],
         format="%(asctime)s | %(levelname)-7s | %(message)s",
         datefmt="%d-%b-%Y %H:%M:%S",
     )
 
     # Calling main function
-    main()
+    run_status = main(output_path, device)
