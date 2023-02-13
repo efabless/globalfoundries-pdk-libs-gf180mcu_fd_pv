@@ -81,18 +81,17 @@ def lvs_check(output_path, table, devices):
         if len(device) > 1:
             switches = device[1] + switches
 
-        # Check if device is mosfet or esd
-        if "sample" in layout:
-            net = f"{layout}.src"
-        else:
-            net = layout
+        # net name
+        net = layout
 
-        if os.path.exists(f"testcases/{layout}.gds") and os.path.exists(f"testcases/{net}.cdl"):
-            layout_path = f"testcases/{layout}.gds"
-            netlist_path = f"testcases/{net}.cdl"
-        elif os.path.exists(f"man_testcases/{layout}.gds") and os.path.exists(f"man_testcases/{net}.cdl"):
+        if os.path.exists(f"man_testcases/{layout}.gds") and os.path.exists(f"man_testcases/{net}.cdl"):
             layout_path = f"man_testcases/{layout}.gds"
             netlist_path = f"man_testcases/{net}.cdl"
+            testcase_type = "Manual"
+        elif os.path.exists(f"testcases/{layout}.gds") and os.path.exists(f"testcases/{net}.cdl"):
+            layout_path = f"testcases/{layout}.gds"
+            netlist_path = f"testcases/{net}.cdl"
+            testcase_type = "Fab"
         else:
             logging.error(f"{net} testcase is not exist, please recheck")
             exit(1)
@@ -137,7 +136,7 @@ def lvs_check(output_path, table, devices):
             with open(pattern_log) as result_file:
                 result = result_file.read()
             if "Congratulations! Netlists match" in result:
-                logging.info(f"{layout} testcase passed")
+                logging.info(f"{layout} testcase passed: {testcase_type}")
                 pass_count += 1
             else:
                 fail_count += 1
@@ -182,19 +181,23 @@ def main(output_path, device):
 
     # MOSFET devices
     mos_devices = [
-        ["sample_pfet_06v0_dn"],
-        ["sample_nfet_10v0_asym"],
+
         ["sample_nfet_03v3"],
-        ["sample_pfet_05v0_dn"],
-        ["sample_pfet_06v0"],
+        ["sample_nfet_03v3_dn"],
         ["sample_nfet_05v0"],
+        ["sample_nfet_05v0_dn"],
         ["sample_nfet_06v0"],
         ["sample_nfet_06v0_dn"],
-        ["sample_pfet_10v0_asym"],
-        ["sample_nfet_05v0_dn"],
-        ["sample_pfet_05v0"],
-        ["sample_pfet_03v3"],
         ["sample_nfet_06v0_nvt"],
+        ["sample_nfet_10v0_asym"],
+        ["sample_pfet_03v3"],
+        ["sample_pfet_03v3_dn"],
+        ["sample_pfet_05v0"],
+        ["sample_pfet_05v0_dn"],
+        ["sample_pfet_06v0"],
+        ["sample_pfet_06v0_dn"],
+        ["sample_pfet_10v0_asym"],
+
     ]
 
     # BJT
