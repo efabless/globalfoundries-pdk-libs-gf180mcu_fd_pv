@@ -23,7 +23,7 @@ REQUIREMENTS_FILE := requirements.txt
 ENVIRONMENT_FILE := pdk_regression.yml
 
 # Path to regression
-KLAYOUT_TESTS := klayout/drc/testing/
+KLAYOUT_DRC_TESTS := klayout/drc/testing/
 
 KLAYOUT_LVS_TESTS := klayout/lvs/testing/
 
@@ -47,12 +47,12 @@ lint_ruby:| $(CONDA_ENV_PYTHON)
 #=================================
 .ONESHELL:
 test-DRC-main : | $(CONDA_ENV_PYTHON) 
-	@$(IN_CONDA_ENV) python3 $(KLAYOUT_TESTS)/run_regression.py
+	@$(IN_CONDA_ENV) python3 $(KLAYOUT_DRC_TESTS)/run_regression.py
 
 .ONESHELL:
 test-DRC-% : | $(CONDA_ENV_PYTHON)
 	@which python3
-	@$(IN_CONDA_ENV) python3 $(KLAYOUT_TESTS)/run_regression.py --table=$*
+	@$(IN_CONDA_ENV) python3 $(KLAYOUT_DRC_TESTS)/run_regression.py --table=$*
 
 #=================================
 # -------- test-DRC-switch -------
