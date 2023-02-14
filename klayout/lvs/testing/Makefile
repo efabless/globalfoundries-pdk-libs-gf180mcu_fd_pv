@@ -81,14 +81,13 @@ test-LVS-%:
 #=================================
 
 .ONESHELL:
-test-LVS-switch: print_klayout_version Add_run-dir
+test-LVS-switch:
 	@cd $(Testing_DIR)
 	@cd ..
 	@echo "========== LVS-Switch testing =========="
-	@python3 run_lvs.py --design=testing/extraction_checking/sample_nfet_03v3.gds --net=sample_nfet_03v3.spice --gf180mcu=A  |& tee testing/$(run_folder)/switch_checking/gf180mcuA.log
-	@python3 run_lvs.py --design=testing/extraction_checking/sample_nfet_03v3.gds --net=sample_nfet_03v3.spice --gf180mcu=B  |& tee testing/$(run_folder)/switch_checking/gf180mcuB.log
-	@python3 run_lvs.py --design=testing/extraction_checking/sample_nfet_03v3.gds --net=sample_nfet_03v3.spice --gf180mcu=C  |& tee testing/$(run_folder)/switch_checking/gf180mcuC.log
-
+	@python3 run_lvs.py --design=testing/extraction_checking/sample_nfet_03v3.gds --net=sample_nfet_03v3.spice --gf180mcu=A 
+	@python3 run_lvs.py --design=testing/extraction_checking/sample_nfet_03v3.gds --net=sample_nfet_03v3.spice --gf180mcu=B
+	@python3 run_lvs.py --design=testing/extraction_checking/sample_nfet_03v3.gds --net=sample_nfet_03v3.spice --gf180mcu=C
 
 #==========================
 # --------- HELP ----------

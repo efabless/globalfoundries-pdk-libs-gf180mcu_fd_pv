@@ -1052,9 +1052,10 @@ poly2_con       = poly2.not(res_mk).not(plfuse)
 
 metal1_con      = metal1.not(metal1_res)
 metal2_con      = metal2.not(metal2_res)
-metal3_con      = metal3.not(metal3_res)
 
-metaltop_con    = metaltop.not(metal6_res) if METAL_LEVEL == '6LM'
+metal3_con      = metal3.not(metal3_res) if METAL_LEVEL != '2LM'
+
+metaltop_con = metaltop.not(metal6_res) if METAL_LEVEL == '6LM'
 
 #==================================
 # ------ MOSFET DERIVATIONS -------
@@ -1389,7 +1390,7 @@ rm2_res = metal2.and(metal2_res)
 rm3_res = metal3.and(metal3_res)
 
 # Metaltop resistor
-tm_res = metaltop.and(metal6_res)
+tm_res = metaltop.and(metal6_res) if METAL_LEVEL == '6LM'
 
 #==================================
 # ------ MIMCAP DERIVATIONS -------
@@ -1403,9 +1404,14 @@ fuse_cap    = fusetop.interacting(cap_mk).interacting(mim_l_mk)
 
 # mim_option B
 mimtm_virtual   = fusetop.sized(1.06.um).and(topmin1_metal.interacting(fusetop))
-metal3_ncap     = metal3_con.not(mimtm_virtual)
-metal4_ncap     = metal4.not(mimtm_virtual)
-metal5_ncap     = metal5.not(mimtm_virtual)
+
+if METAL_LEVEL != '2LM'
+  metal3_ncap     = metal3_con.not(mimtm_virtual)
+  if METAL_LEVEL != '3LM'
+    metal4_ncap     = metal4.not(mimtm_virtual)
+    metal5_ncap     = metal5.not(mimtm_virtual) if METAL_LEVEL != '4LM'
+  end
+end
 
 #==================================
 # ------ MOSCAP DERIVATIONS -------
