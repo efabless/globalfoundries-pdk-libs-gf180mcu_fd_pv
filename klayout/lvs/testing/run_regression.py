@@ -20,7 +20,7 @@ Usage:
 
 Options:
     --help -h                 Print this help message.
-    --device=<device_name>    Name of device that we want to run regression for, Allowed values (MOS, BJT, DIODE, RES, MIMCAP, MOSCAP, MOS_SAB).
+    --device=<device_name>    Name of device that we want to run regression for, Allowed values (MOS, BJT, DIODE, RES, MIMCAP, MOSCAP, MOS_SAB, EFUSE).
     --mp=<num>                The number of threads used in run.
     --run_name=<run_name>     Select your run name.
 """
@@ -70,30 +70,23 @@ def lvs_check(output_path, table, devices):
 
     # Generate databases
     for device in devices:
-        layout = device[0]
+        device_name = device[0]
 
         # Get switches
-        if layout == "sample_ggnfet_06v0_dss":
-            switches = " -rd lvs_sub=sub!"
-        else:
-            switches = " -rd lvs_sub=vdd!"
-
-        if len(device) > 1:
-            switches = device[1] + switches
-
-        # net name
-        net = layout
-
-        if os.path.exists(f"man_testcases/{layout}.gds") and os.path.exists(f"man_testcases/{net}.cdl"):
-            layout_path = f"man_testcases/{layout}.gds"
-            netlist_path = f"man_testcases/{net}.cdl"
+        switches = " -rd lvs_sub=sub!" if device_name == "sample_ggnfet_06v0_dss" else " -rd lvs_sub=vdd!"
+        switches = device[1] + switches if len(device) > 1 else switches
+        
+        # Checking existance of testcase
+        if os.path.exists(f"man_testcases/{device_name}.gds") and os.path.exists(f"man_testcases/{device_name}.cdl"):
+            layout_path = f"man_testcases/{device_name}.gds"
+            netlist_path = f"man_testcases/{device_name}.cdl"
             testcase_type = "Manual"
-        elif os.path.exists(f"testcases/{layout}.gds") and os.path.exists(f"testcases/{net}.cdl"):
-            layout_path = f"testcases/{layout}.gds"
-            netlist_path = f"testcases/{net}.cdl"
+        elif os.path.exists(f"testcases/{device_name}.gds") and os.path.exists(f"testcases/{device_name}.cdl"):
+            layout_path = f"testcases/{device_name}.gds"
+            netlist_path = f"testcases/{device_name}.cdl"
             testcase_type = "Fab"
         else:
-            logging.error(f"{net} testcase is not exist, please recheck")
+            logging.error(f"{device_name} testcase is not exist, please recheck")
             exit(1)
 
         # Get netlist without $ and ][
@@ -115,15 +108,15 @@ def lvs_check(output_path, table, devices):
         )
 
         # Write clean netlist in run folder
-        final_layout = f"{output_path}/LVS_{device_dir}/{layout}.gds"
-        final_netlist = f"{output_path}/LVS_{device_dir}/{net}_generated.cdl"
-        pattern_log = f"{output_path}/LVS_{device_dir}/{layout}.log"
+        final_layout = f"{output_path}/LVS_{device_dir}/{device_name}.gds"
+        final_netlist = f"{output_path}/LVS_{device_dir}/{device_name}_generated.cdl"
+        pattern_log = f"{output_path}/LVS_{device_dir}/{device_name}.log"
 
         with open(final_netlist, "w") as file:
             file.write(spice_netlist)
 
         # command to run drc
-        call_str = f"klayout -b -r ../gf180mcu.lvs -rd input={final_layout} -rd report={layout}.lvsdb -rd schematic={layout}_generated.cdl -rd target_netlist={layout}_extracted.cir {switches} > {pattern_log} 2>&1"
+        call_str = f"klayout -b -r ../gf180mcu.lvs -rd input={final_layout} -rd report={device_name}.lvsdb -rd schematic={device_name}_generated.cdl -rd target_netlist={device_name}_extracted.cir {switches} > {pattern_log} 2>&1"
 
     # Starting klayout run
         try:
@@ -136,11 +129,11 @@ def lvs_check(output_path, table, devices):
             with open(pattern_log) as result_file:
                 result = result_file.read()
             if "Congratulations! Netlists match" in result:
-                logging.info(f"{layout} testcase passed: {testcase_type}")
+                logging.info(f"{device_name} testcase passed: {testcase_type}")
                 pass_count += 1
             else:
                 fail_count += 1
-                logging.error(f"{layout} testcase failed.")
+                logging.error(f"{device_name} testcase failed.")
                 logging.error(f"Please recheck {layout_path} file.")
                 exit(1)
         else:
@@ -276,18 +269,18 @@ def main(output_path, device):
 
     # MIM Capacitor
     mimcap_devices = [
-        ["cap_mim_1f0_m2m3_noshield", "-rd mim_option=A -rd mim_cap=1"],
-        ["cap_mim_1f5_m2m3_noshield", "-rd mim_option=A -rd mim_cap=1.5"],
-        ["cap_mim_2f0_m2m3_noshield", "-rd mim_option=A -rd mim_cap=2"],
-        ["cap_mim_1f0_m3m4_noshield", "-rd mim_option=B -rd mim_cap=1"],
-        ["cap_mim_1f5_m3m4_noshield", "-rd mim_option=B -rd mim_cap=1.5"],
-        ["cap_mim_2f0_m3m4_noshield", "-rd mim_option=B -rd mim_cap=2"],
-        ["cap_mim_1f0_m4m5_noshield", "-rd mim_option=B -rd mim_cap=1"],
-        ["cap_mim_1f5_m4m5_noshield", "-rd mim_option=B -rd mim_cap=1.5"],
-        ["cap_mim_2f0_m4m5_noshield", "-rd mim_option=B -rd mim_cap=2"],
-        ["cap_mim_1f0_m5m6_noshield", "-rd mim_option=B -rd mim_cap=1"],
-        ["cap_mim_1f5_m5m6_noshield", "-rd mim_option=B -rd mim_cap=1.5"],
-        ["cap_mim_2f0_m5m6_noshield", "-rd mim_option=B -rd mim_cap=2"]
+        ["cap_mim_1f0_m2m3_noshield", "-rd mim_option=A -rd metal_level=3LM -rd mim_cap=1"],
+        ["cap_mim_1f5_m2m3_noshield", "-rd mim_option=A -rd metal_level=3LM -rd mim_cap=1.5"],
+        ["cap_mim_2f0_m2m3_noshield", "-rd mim_option=A -rd metal_level=3LM -rd mim_cap=2"],
+        ["cap_mim_1f0_m3m4_noshield", "-rd mim_option=B -rd metal_level=4LM -rd mim_cap=1"],
+        ["cap_mim_1f5_m3m4_noshield", "-rd mim_option=B -rd metal_level=4LM -rd mim_cap=1.5"],
+        ["cap_mim_2f0_m3m4_noshield", "-rd mim_option=B -rd metal_level=4LM -rd mim_cap=2"],
+        ["cap_mim_1f0_m4m5_noshield", "-rd mim_option=B -rd metal_level=5LM -rd mim_cap=1"],
+        ["cap_mim_1f5_m4m5_noshield", "-rd mim_option=B -rd metal_level=5LM -rd mim_cap=1.5"],
+        ["cap_mim_2f0_m4m5_noshield", "-rd mim_option=B -rd metal_level=5LM -rd mim_cap=2"],
+        ["cap_mim_1f0_m5m6_noshield", "-rd mim_option=B -rd metal_level=6LM -rd mim_cap=1"],
+        ["cap_mim_1f5_m5m6_noshield", "-rd mim_option=B -rd metal_level=6LM -rd mim_cap=1.5"],
+        ["cap_mim_2f0_m5m6_noshield", "-rd mim_option=B -rd metal_level=6LM -rd mim_cap=2"]
     ]
 
     # MOS Capacitor
@@ -336,7 +329,7 @@ def main(output_path, device):
         logging.info(f"Running Global Foundries 180nm MCU LVS regression on {device}")
         run_status = lvs_check(output_path, f"{device} DEVICES", all_devices[device])
     else:
-        logging.error("Allowed devices are (MOS, BJT, DIODE, RES, MIMCAP, MOSCAP, MOS_SAB) only")
+        logging.error("Allowed devices are (MOS, BJT, DIODE, RES, MIMCAP, MOSCAP, MOS_SAB, EFUSE) only")
         exit(1)
 
     if run_status:
