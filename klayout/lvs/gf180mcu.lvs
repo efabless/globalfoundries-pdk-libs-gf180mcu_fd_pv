@@ -200,27 +200,26 @@ logger.info("MIM CAP selected: #{MIM_CAP}")
 #------------- METAL LEVEL SWITCHES -------------
 #================================================
 
-case METAL_LEVEL
-when '6LM'
-  cap_mim1f0 = 'cap_mim_1f0_m5m6_noshield'
-  cap_mim1f5 = 'cap_mim_1f5_m5m6_noshield'
-  cap_mim2f0 = 'cap_mim_2f0_m5m6_noshield'
-when '5LM'
-  cap_mim1f0 = 'cap_mim_1f0_m4m5_noshield'
-  cap_mim1f5 = 'cap_mim_1f5_m4m5_noshield'
-  cap_mim2f0 = 'cap_mim_2f0_m4m5_noshield'
-when '4LM'
-  cap_mim1f0 = 'cap_mim_1f0_m3m4_noshield'
-  cap_mim1f5 = 'cap_mim_1f5_m3m4_noshield'
-  cap_mim2f0 = 'cap_mim_2f0_m3m4_noshield'
-when '3LM'
+case MIM_OPTION
+when 'A'
   cap_mim1f0 = 'cap_mim_1f0_m2m3_noshield'
   cap_mim1f5 = 'cap_mim_1f5_m2m3_noshield'
   cap_mim2f0 = 'cap_mim_2f0_m2m3_noshield'
-when '2LM'
-  cap_mim1f0 = 'cap_mim_1f0_m2m3_noshield'
-  cap_mim1f5 = 'cap_mim_1f5_m2m3_noshield'
-  cap_mim2f0 = 'cap_mim_2f0_m2m3_noshield'
+when 'B'
+  case METAL_LEVEL
+    when '6LM'
+      cap_mim1f0 = 'cap_mim_1f0_m5m6_noshield'
+      cap_mim1f5 = 'cap_mim_1f5_m5m6_noshield'
+      cap_mim2f0 = 'cap_mim_2f0_m5m6_noshield'
+    when '5LM'
+      cap_mim1f0 = 'cap_mim_1f0_m4m5_noshield'
+      cap_mim1f5 = 'cap_mim_1f5_m4m5_noshield'
+      cap_mim2f0 = 'cap_mim_2f0_m4m5_noshield'
+    when '4LM'
+      cap_mim1f0 = 'cap_mim_1f0_m3m4_noshield'
+      cap_mim1f5 = 'cap_mim_1f5_m3m4_noshield'
+      cap_mim2f0 = 'cap_mim_2f0_m3m4_noshield'
+    end
 end
 
 #================================================
