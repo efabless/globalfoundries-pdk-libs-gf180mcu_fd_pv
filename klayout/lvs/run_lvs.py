@@ -184,7 +184,7 @@ def main():
             exit(1)
 
         check_call(
-            f"klayout -b -r {run_lvs_full_path}/gf180mcu.lvs -rd input={path} -rd report={file_name[0]}.lyrdb -rd schematic={args['--net']} -rd target_netlist=extracted_netlist_{file_name[0]}.cir -rd thr={workers_count} {switches}",
+            f"klayout -b -r {run_lvs_full_path}/gf180mcu.lvs -rd input={path} -rd report={file_name[0]}.lvsdb -rd schematic={args['--net']} -rd target_netlist=extracted_netlist_{file_name[0]}.cir -rd thr={workers_count} {switches}",
             shell=True,
         )
 

@@ -9,7 +9,6 @@ Explains how to use the runset.
  ┣ 📦testing
  ┣ 📜README.md
  ┣ 📜gf_018mcu.lvs
- ┣ 📜gf_018mcu.lyp
  ┗ 📜run_lvs.py
  ```
 

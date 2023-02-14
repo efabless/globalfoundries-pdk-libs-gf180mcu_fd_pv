@@ -8,13 +8,10 @@ Explains how to test GF180nm LVS rule deck.
 📦testing
  ┣ 📜Makefile
  ┣ 📜README.md
- ┣ 📜run_full_regression.py
  ┣ 📜run_regression.py
- ┣ 📜run_sc_regression.py
- ┣ 📜sc_testcases
  ┣ 📜extraction_checking
  ┗ 📜testcases
- ┗ 📜man_testing
+ ┗ 📜man_testcases
  ```
 
 ## Prerequisites
@@ -23,7 +20,7 @@ At a minimum:
 
 - Git 2.35+
 - Python 3.6+
-- KLayout 0.27.8+
+- KLayout 0.28.0+
 
 ### On Ubuntu, you can just
 
@@ -48,5 +45,3 @@ make all
 ## **Regression Outputs**
 
 - Final results will appear at the end of the run logs.
-
-- The final report for standard cells LVS-regression will be generated in the current directory with the name of  `sc_testcases/sc_report.csv`.
