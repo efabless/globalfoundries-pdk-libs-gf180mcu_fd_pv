@@ -44,8 +44,36 @@ Options:
 from docopt import docopt
 import os
 import logging
-
 from subprocess import check_call
+
+
+def check_klayout_version():
+    """
+    check_klayout_version checks klayout version and makes sure it would work with the DRC.
+    """
+    # ======= Checking Klayout version =======
+    klayout_v_ = os.popen("klayout -b -v").read()
+    klayout_v_ = klayout_v_.split("\n")[0]
+    klayout_v_list = []
+
+    if klayout_v_ == "":
+        logging.error("Klayout is not found. Please make sure klayout is installed.")
+        exit(1)
+    else:
+        klayout_v_list = [int(v) for v in klayout_v_.split(" ")[-1].split(".")]
+
+    logging.info(f"Your Klayout version is: {klayout_v_}")
+
+    if len(klayout_v_list) < 1 or len(klayout_v_list) > 3:
+        logging.error("Was not able to get klayout version properly.")
+        exit(1)
+    elif len(klayout_v_list) >= 2 or len(klayout_v_list) <= 3:
+        if klayout_v_list[1] < 28:
+            logging.error("Prerequisites at a minimum: KLayout 0.28.0")
+            logging.error(
+                "Using this klayout version has not been assesed in this development. Limits are unknown"
+            )
+            exit(1)
 
 
 def main():
@@ -153,7 +181,7 @@ def main():
             print(
                 "The script must be given a netlist file or a path to be able to run LVS"
             )
-            exit()
+            exit(1)
 
         check_call(
             f"klayout -b -r {run_lvs_full_path}/gf180mcu.lvs -rd input={path} -rd report={file_name[0]}.lyrdb -rd schematic={args['--net']} -rd target_netlist=extracted_netlist_{file_name[0]}.cir -rd thr={workers_count} {switches}",
@@ -162,7 +190,7 @@ def main():
 
     else:
         print("The script must be given a layout file or a path to be able to run LVS")
-        exit()
+        exit(1)
 
 
 if __name__ == "__main__":
@@ -179,17 +207,8 @@ if __name__ == "__main__":
 
     run_lvs_full_path = os.path.dirname(os.path.abspath(__file__))
 
-    # ========= Checking Klayout version =========
-    klayout_v_ = os.popen("klayout -v").read()
-    klayout_v_ = klayout_v_.split("\n")[0]
-    klayout_v = int(klayout_v_.split(".")[-1])
-
-    if klayout_v < 8:
-        logging.warning(
-            "Using this klayout version has not been assesed in this development. Limits are unknown"
-        )
-        logging.info(f"Your version is: {klayout_v_}")
-        logging.info("Prerequisites at a minimum: KLayout 0.27.8")
+    ## Check Klayout version
+    check_klayout_version()
 
     # Calling main function
     main()

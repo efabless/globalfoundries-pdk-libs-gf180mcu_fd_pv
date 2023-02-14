@@ -30,7 +30,6 @@ from docopt import docopt
 import os
 import logging
 from subprocess import check_call
-import glob
 
 
 def check_klayout_version():
