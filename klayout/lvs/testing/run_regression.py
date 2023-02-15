@@ -245,7 +245,7 @@ def run_test_case(
         switches = " ".join(get_switches(sw_file, device_name))
     else:
         # Get switches
-        switches = " -rd lvs_sub=sub!" if device_name == "sample_ggnfet_06v0_dss" else " -rd lvs_sub=vdd!" # default switch
+        switches = " -rd lvs_sub=sub!" if device_name == "sample_ggnfet_06v0_dss" else " -rd lvs_sub=vdd!"  # default switch
 
     # Creating run folder structure and copy testcases in it
     pattern_clean = ".".join(os.path.basename(layout_path).split(".")[:-1])
@@ -333,7 +333,7 @@ def run_all_test_cases(tc_df, lvs_dir, run_dir, num_workers):
         for future in concurrent.futures.as_completed(future_to_run_id):
             run_id = future_to_run_id[future]
             try:
-                tc_df.loc[tc_df["run_id"] == run_id, "device_status"] =  future.result()
+                tc_df.loc[tc_df["run_id"] == run_id, "device_status"] = future.result()
             except Exception as exc:
                 logging.error("%d generated an exception: %s" % (run_id, exc))
                 traceback.print_exc()
@@ -418,7 +418,7 @@ def run_regression(lvs_dir, output_path, target_device_group, cpu_count):
     ## Aggregate all dataframes into one
     df = aggregate_results(results_df, devices_df)
     df.drop_duplicates(inplace=True)
-    df.drop('run_id', inplace=True, axis=1)    
+    df.drop('run_id', inplace=True, axis=1)
     logging.info("## Final analysis table: \n" + str(df))
 
     ## Generate error if there are any missing info or fails.
