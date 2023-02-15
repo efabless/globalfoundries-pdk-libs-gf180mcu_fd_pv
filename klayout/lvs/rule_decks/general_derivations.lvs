@@ -1,0 +1,49 @@
+################################################################################################
+# Copyright 2022 GlobalFoundries PDK Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################################
+
+#==================================
+# ------ GENERAL DERIVATIONS ------
+#==================================
+
+ncomp           = comp.and(nplus)
+pcomp           = comp.and(pplus)
+tgate           = poly2.and(comp).not(res_mk)
+
+ngate           = nplus.and(tgate)
+nsd             = ncomp.outside(nwell).interacting(ngate).not(ngate).not(res_mk)
+ptap            = pcomp.outside(nwell).outside(dnwell).not(res_mk)
+
+pgate           = pplus.and(tgate)
+psd             = pcomp.inside(nwell).interacting(pgate).not(pgate).not(res_mk)
+ntap            = ncomp.inside(nwell).not(res_mk)
+
+ngate_dw        = ngate.and(lvpwell).and(dnwell)
+ptap_dw         = pcomp.inside(lvpwell).inside(dnwell).outside(well_diode_mk).not(res_mk)
+
+pgate_dw        = pgate.inside(dnwell).outside(lvpwell)
+ntap_dw         = ncomp.outside(lvpwell).inside(dnwell).not(res_mk)
+
+psd_dw          = pcomp.not(lvpwell).and(dnwell).interacting(pgate).not(pgate).not(res_mk)
+nwell_con       = nwell.not(res_mk)
+lvpwell_con     = lvpwell.not(res_mk)
+poly2_con       = poly2.not(res_mk).not(plfuse)
+
+metal1_con      = metal1.not(metal1_res)
+metal2_con      = metal2.not(metal2_res)
+
+metal3_con      = metal3.not(metal3_res) if METAL_LEVEL != '2LM'
+
+metaltop_con = metaltop.not(metal6_res) if METAL_LEVEL == '6LM'

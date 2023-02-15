@@ -34,7 +34,7 @@ test-LVS-main: test-LVS-MOS  test-LVS-BJT  test-LVS-DIODE  test-LVS-RES  test-LV
 
 .ONESHELL:
 test-LVS-%:
-	@ python3 run_regression.py --device=$*
+	@ python3 run_regression.py --device_name=$*
 
 #=================================
 # -------- test-LVS-switch -------
@@ -48,24 +48,3 @@ test-LVS-switch:
 	@python3 run_lvs.py --design=testing/extraction_checking/sample_nfet_03v3.gds --net=sample_nfet_03v3.spice --gf180mcu=A 
 	@python3 run_lvs.py --design=testing/extraction_checking/sample_nfet_03v3.gds --net=sample_nfet_03v3.spice --gf180mcu=B
 	@python3 run_lvs.py --design=testing/extraction_checking/sample_nfet_03v3.gds --net=sample_nfet_03v3.spice --gf180mcu=C
-
-#==========================
-# --------- HELP ----------
-#==========================
-
-# Help Target
-help:
-	@echo "\n ==== The following are some of the valid targets for this Makefile ====\n"
-	@echo "... all                  	(the default if no target is provided          )"
-	@echo "... Add_run-dir          	(Create output directory of all runs           )"
-	@echo "... test-LVS             	(To run LVS full regression                    )"
-	@echo "... test-LVS-switch      	(To run switch checking regression             )"
-	@echo "... test-LVS-gf180mcu_fd_sc	(To run standard cells LVS regression          )"
-	@echo "... test-LVS-main        	(To run main LVS regression for all devices    )"
-	@echo "... test-LVS_MOS         	(To run main LVS regression for MOS devices    )"
-	@echo "... test-LVS_BJT         	(To run main LVS regression for BJT devices    )"
-	@echo "... test-LVS_DIODE       	(To run main LVS regression for diode devices  )"
-	@echo "... test-LVS_RES         	(To run main LVS regression for diode devices  )"
-	@echo "... test-LVS_MIMCAP      	(To run main LVS regression for diode devices  )"
-	@echo "... test-LVS_MOSCAP      	(To run main LVS regression for diode devices  )"
-	@echo "... test-LVS_MOS-SAB     	(To run main LVS regression for SAB MOS devices)"

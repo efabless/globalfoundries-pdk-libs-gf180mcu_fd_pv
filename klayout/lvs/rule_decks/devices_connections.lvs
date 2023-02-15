@@ -1,0 +1,259 @@
+################################################################################################
+# Copyright 2022 GlobalFoundries PDK Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################################
+
+#================================================
+#------------ DEVICES CONNECTIVITY --------------
+#================================================
+
+logger.info('Starting GF180 LVS connectivity setup')
+
+#================================
+# ----- GENERAL CONNECTIONS -----
+#================================
+
+logger.info('Starting GF180 LVS connectivity setup (Inter-layer)')
+
+# Inter-layer
+connect(sub,          ptap)
+connect(lvpwell_con, ptap)
+connect(lvpwell_con, ptap_dw)
+connect(dnwell, ntap_dw)
+connect(nwell_con, ntap)
+connect(ptap, contact)
+connect(ptap_dw, contact)
+connect(ntap, contact)
+connect(ntap_dw, contact)
+connect(psd, contact)
+connect(psd_dw, contact)
+connect(nsd, contact)
+connect(poly2_con, contact)
+connect(contact, metal1_con)
+connect(metal1_con, via1)
+connect(via1, metal2_ncap)
+if METAL_LEVEL != '2LM'
+  connect(metal2_ncap, via2)
+  connect(via2, metal3_ncap)
+  if METAL_LEVEL != '3LM'
+    connect(metal3_ncap, via3)
+    connect(via3, metal4_ncap)
+    if METAL_LEVEL != '4LM'
+      connect(metal4_ncap, via4)
+      connect(via4, metal5_ncap)
+      if METAL_LEVEL != '5LM'
+        connect(metal5_ncap, via5)
+        connect(via5, metaltop_con)
+      end
+    end
+  end
+end
+
+logger.info('Starting GF180 LVS connectivity setup (Attaching labels)')
+
+# Attaching labels
+connect(comp, comp_label)
+connect(poly2_con, poly2_label)
+connect(metal1_con, metal1_label)
+connect(metal2_ncap, metal2_label)
+if METAL_LEVEL != '2LM'
+  connect(metal3_ncap, metal3_label)
+  if METAL_LEVEL != '3LM'
+    connect(metal4_ncap, metal4_label)
+    if METAL_LEVEL != '4LM'
+      connect(metal5_ncap, metal5_label)
+      connect(metaltop_con, metaltop_label) if METAL_LEVEL != '5LM'
+    end
+  end
+end
+
+logger.info('Starting GF180 LVS connectivity setup (Global)')
+
+# Global
+connect_global(sub, substrate_name)
+
+logger.info('Starting GF180 LVS connectivity setup (Multifinger Devices)')
+
+# Multifinger Devices
+connect_implicit('*')
+
+#================================
+# ----- MOSFET CONNECTIONS ------
+#================================
+logger.info('Starting LVS MOSFET CONNECTIONS')
+
+connect(psd_dw, contact)
+
+connect(nd_ldmos, contact)
+connect(ns_ldmos, contact)
+
+connect(pd_ldmos, contact)
+connect(ps_ldmos, contact)
+
+#================================
+# ------ BJT CONNECTIONS --------
+#================================
+logger.info('Starting LVS BJT CONNECTIONS')
+
+# ==============
+# ---- vnpn ----
+# ==============
+
+# npn_10p00x10p00 nodes connections
+connect(npn_10p00x10p00_e, contact)
+connect(npn_10p00x10p00_b, contact)
+connect(npn_10p00x10p00_c, contact)
+
+# npn_05p00x05p00 nodes connections
+connect(npn_05p00x05p00_e, contact)
+connect(npn_05p00x05p00_b, contact)
+connect(npn_05p00x05p00_c, contact)
+
+# npn_00p54x16p00 nodes connections
+connect(npn_00p54x16p00_e, contact)
+connect(npn_00p54x16p00_b, contact)
+connect(npn_00p54x16p00_c, contact)
+
+# npn_00p54x08p00 nodes connections
+connect(npn_00p54x08p00_e, contact)
+connect(npn_00p54x08p00_b, contact)
+connect(npn_00p54x08p00_c, contact)
+
+# npn_00p54x04p00 nodes connections
+connect(npn_00p54x04p00_e, contact)
+connect(npn_00p54x04p00_b, contact)
+connect(npn_00p54x04p00_c, contact)
+
+# npn_00p54x02p00 nodes connections
+connect(npn_00p54x02p00_e, contact)
+connect(npn_00p54x02p00_b, contact)
+connect(npn_00p54x02p00_c, contact)
+
+# ==============
+# ---- vpnp ----
+# ==============
+
+# pnp_10p00x10p00 nodes connections
+connect(pnp_10p00x10p00_e, contact)
+connect(pnp_10p00x10p00_b, contact)
+connect(pnp_10p00x10p00_c, contact)
+
+# pnp_05p00x05p00 nodes connections
+connect(pnp_05p00x05p00_e, contact)
+connect(pnp_05p00x05p00_b, contact)
+connect(pnp_05p00x05p00_c, contact)
+
+# pnp_10p00x00p42 nodes connections
+connect(pnp_10p00x00p42_e, contact)
+connect(pnp_10p00x00p42_b, contact)
+connect(pnp_10p00x00p42_c, contact)
+
+# pnp_05p00x00p42 nodes connections
+connect(pnp_05p00x00p42_e, contact)
+connect(pnp_05p00x00p42_b, contact)
+connect(pnp_05p00x00p42_c, contact)
+
+#================================
+# ----- DIODE CONNECTIONS -------
+#================================
+
+logger.info('Starting LVS DIODE CONNECTIONS')
+
+# diode_nd2ps_03v3 diode
+connect(diode_nd2ps_03v3_terminal_n, contact)
+
+# diode_nd2ps_03v3_dn diode
+connect(diode_nd2ps_03v3_dn_terminal_n, contact)
+
+# diode_nd2ps_06v0 diode
+connect(diode_nd2ps_06v0_terminal_n, contact)
+
+# diode_nd2ps_06v0_dn diode
+connect(diode_nd2ps_06v0_dn_terminal_n, contact)
+
+# diode_pd2nw_03v3 diode
+connect(diode_pd2nw_03v3_terminal_p, contact)
+
+# diode_pd2nw_03v3_dn diode
+connect(diode_pd2nw_03v3_dn_terminal_p, contact)
+
+# diode_pd2nw_06v0 diode
+connect(diode_pd2nw_06v0_terminal_p, contact)
+
+# diode_pd2nw_06v0_dn diode
+connect(diode_pd2nw_06v0_dn_terminal_p, contact)
+
+# diode_nw2ps_03v3 diode
+connect(diode_nw2ps_03v3_terminal_p, contact)
+connect(diode_nw2ps_03v3_terminal_n, nwell)
+
+# diode_nw2ps_06v0 diode
+connect(diode_nw2ps_06v0_terminal_p, contact)
+connect(diode_nw2ps_06v0_terminal_n, nwell)
+
+# diode_pw2dw_03v3 diode
+connect(diode_pw2dw_03v3_terminal_p, contact)
+
+# diode_pw2dw_06v0 diode
+connect(diode_pw2dw_06v0_terminal_p, contact)
+
+# diode_dw2ps_03v3 diode
+connect(diode_dw2ps_03v3_terminal_p, ptap)
+
+# diode_dw2ps_06v0 diode
+connect(diode_dw2ps_06v0_terminal_p, ptap)
+
+# sc_diode diode
+connect(sc_diode_terminal_n, contact)
+connect(sc_diode_terminal_p, schottky_diode)
+
+#================================
+# ---- RESISTOR DERIVATIONS -----
+#================================
+
+logger.info('Starting LVS RESISTOR CONNECTIONS')
+
+connect(nplus_cont, contact)
+connect(pplus_cont, contact)
+connect(pplus_dw_cont, contact)
+
+#==================================
+# ------ MIMCAP CONNECTIONS -------
+#==================================
+
+logger.info('Starting LVS MIMCAP CONNECTIONS')
+
+case MIM_OPTION
+when 'A'
+
+  # mim option A
+  connect(metal2, mim_virtual)
+  connect(fuse_cap, via2)
+
+when 'B'
+
+  # mim_option B
+  connect(topmin1_metal, mimtm_virtual)
+  connect(fuse_cap, top_via)
+
+end
+
+#================================
+# ------ EFUSE CONNECTIONS ------
+#================================
+
+logger.info('Starting LVS EFUSE CONNECTIONS')
+
+connect(cathode, contact)
+connect(anode, contact)

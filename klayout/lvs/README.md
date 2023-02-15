@@ -5,8 +5,8 @@ Explains how to use the runset.
 ## Folder Structure
 
 ```text
-📦runset
- ┣ 📦testing
+📁 runset
+ ┣ 📁testing
  ┣ 📜README.md
  ┣ 📜gf_018mcu.lvs
  ┗ 📜run_lvs.py

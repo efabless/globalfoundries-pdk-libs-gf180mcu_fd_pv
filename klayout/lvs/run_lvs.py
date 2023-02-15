@@ -174,9 +174,11 @@ def main():
 
     # Generate databases
     if args["--design"]:
-        path = args["--design"]
+        layout_path = args["--design"]
+        db_path = layout_path.replace(".gds", ".lvsdb")
+        extracted_net_path = layout_path.replace(".gds", ".cir")
         if args["--net"]:
-            file_name = args["--net"].split(".")
+            net_path = args["--net"]
         else:
             print(
                 "The script must be given a netlist file or a path to be able to run LVS"
@@ -184,7 +186,7 @@ def main():
             exit(1)
 
         check_call(
-            f"klayout -b -r {run_lvs_full_path}/gf180mcu.lvs -rd input={path} -rd report={file_name[0]}.lvsdb -rd schematic={args['--net']} -rd target_netlist=extracted_netlist_{file_name[0]}.cir -rd thr={workers_count} {switches}",
+            f"klayout -b -r {run_lvs_full_path}/gf180mcu.lvs -rd input={layout_path} -rd schematic=`readlink -f {net_path}` -rd report=`readlink -f {db_path}` -rd target_netlist=`readlink -f {extracted_net_path}` -rd thr={workers_count} {switches}",
             shell=True,
         )
 

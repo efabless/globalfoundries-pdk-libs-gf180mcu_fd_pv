@@ -16,20 +16,40 @@
 
 Usage:
     run_regression.py (--help| -h)
-    run_regression.py (--device=<device_name>) [--mp=<num>] [--run_name=<run_name>]
+    run_regression.py [--device_name=<device_name>] [--mp=<num>] [--run_name=<run_name>]
 
 Options:
-    --help -h                 Print this help message.
-    --device=<device_name>    Name of device that we want to run regression for, Allowed values (MOS, BJT, DIODE, RES, MIMCAP, MOSCAP, MOS_SAB, EFUSE).
-    --mp=<num>                The number of threads used in run.
-    --run_name=<run_name>     Select your run name.
+    --help -h                      Print this help message.
+    --device_name=<device_name>    Name of device that we want to run regression for, Allowed values (MOS, BJT, DIODE, RES, MIMCAP, MOSCAP, MOS_SAB, EFUSE).
+    --mp=<num>                     The number of threads used in run.
+    --run_name=<run_name>          Select your run name.
 """
 
-from datetime import datetime
+from subprocess import check_call
+from subprocess import Popen, PIPE
+import concurrent.futures
+import traceback
+import yaml
 from docopt import docopt
 import os
+from datetime import datetime
+import xml.etree.ElementTree as ET
+import time
+import pandas as pd
 import logging
-from subprocess import check_call
+import glob
+from pathlib import Path
+from tqdm import tqdm
+import re
+import gdstk
+import errno
+import numpy as np
+from collections import defaultdict
+import shutil
+
+SUPPORTED_TC_EXT = "gds"
+SUPPORTED_SPICE_EXT = "cdl"
+SUPPORTED_SW_EXT = "yaml"
 
 
 def check_klayout_version():
@@ -61,96 +81,362 @@ def check_klayout_version():
             exit(1)
 
 
-def lvs_check(output_path, table, devices):
+def parse_existing_devices(rule_deck_path, output_path, target_device_group=None):
+    """
+    This function collects the rule names from the existing drc rule decks.
 
-    # counters
-    pass_count = 0
-    fail_count = 0
+    Parameters
+    ----------
+    rule_deck_path : string or Path object
+        Path string to the LVS directory where all the LVS files are located.
+    output_path : string or Path
+        Path of the run location to store the output analysis file.
+    target_device_group : string Optional
+        Name of the device group to be in testing
 
-    # Generate databases
-    for device in devices:
-        device_name = device[0]
+    Returns
+    -------
+    pd.DataFrame
+        A pandas DataFrame with the rule and rule deck used.
+    """
 
-        # Get switches
-        switches = " -rd lvs_sub=sub!" if device_name == "sample_ggnfet_06v0_dss" else " -rd lvs_sub=vdd!"
-        switches = device[1] + switches if len(device) > 1 else switches
-
-        # Checking existance of testcase
-        if os.path.exists(f"man_testcases/{device_name}.gds") and os.path.exists(f"man_testcases/{device_name}.cdl"):
-            layout_path = f"man_testcases/{device_name}.gds"
-            netlist_path = f"man_testcases/{device_name}.cdl"
-            testcase_type = "Manual"
-        elif os.path.exists(f"testcases/{device_name}.gds") and os.path.exists(f"testcases/{device_name}.cdl"):
-            layout_path = f"testcases/{device_name}.gds"
-            netlist_path = f"testcases/{device_name}.cdl"
-            testcase_type = "Fab"
-        else:
-            logging.error(f"{device_name} testcase is not exist, please recheck")
-            exit(1)
-
-        # Get netlist without $ and ][
-        with open(netlist_path, "r") as file:
-            spice_netlist = file.read()
-
-        # Replace the target string
-        spice_netlist = spice_netlist.replace("$SUB=", "")
-        spice_netlist = spice_netlist.replace("$", "")
-        spice_netlist = spice_netlist.replace("[", "")
-        spice_netlist = spice_netlist.replace("]", "")
-
-        # Cloning run files into run dir
-        device_dir = table.split(" ")[0]
-        os.makedirs(f"{output_path}/LVS_{device_dir}", exist_ok=True)
-        check_call(
-            f"cp -f {layout_path} {netlist_path} {output_path}/LVS_{device_dir}/",
-            shell=True,
+    if target_device_group is None:
+        lvs_files = glob.glob(os.path.join(rule_deck_path, "rule_decks", "*_extraction.lvs"))
+    else:
+        table_device_file = os.path.join(
+            rule_deck_path, "rule_decks", f"{str(target_device_group).lower()}_extraction.lvs"
         )
+        if not os.path.isfile(table_device_file):
+            raise FileNotFoundError(
+                errno.ENOENT, os.strerror(errno.ENOENT), table_device_file
+            )
 
-        # Write clean netlist in run folder
-        final_layout = f"{output_path}/LVS_{device_dir}/{device_name}.gds"
-        final_netlist = f"{output_path}/LVS_{device_dir}/{device_name}_generated.cdl"
-        pattern_log = f"{output_path}/LVS_{device_dir}/{device_name}.log"
+        lvs_files = [table_device_file]
 
-        with open(final_netlist, "w") as file:
-            file.write(spice_netlist)
+    rules_data = list()
 
-        # command to run drc
-        call_str = f"klayout -b -r ../gf180mcu.lvs -rd input={final_layout} -rd report={device_name}.lvsdb -rd schematic={device_name}_generated.cdl -rd target_netlist={device_name}_extracted.cir {switches} > {pattern_log} 2>&1"
+    for runset in lvs_files:
+        with open(runset, "r") as f:
+            for line in f:
+                if "extract_devices" in line:
+                    line_list = line.split("'")
+                    rule_info = dict()
+                    rule_info["device_group"] = os.path.basename(runset).replace(
+                        "_extraction.lvs", ""
+                    ).upper()
+                    rule_info["device_name"] = line_list[1]
+                    rule_info["in_rule_deck"] = 1
+                    rules_data.append(rule_info)
+
+    df = pd.DataFrame(rules_data)
+    df.drop_duplicates(inplace=True)
+    df.to_csv(os.path.join(output_path, "rule_deck_rules.csv"), index=False)
+    return df
+
+
+def build_tests_dataframe(unit_test_cases_dir, target_device_group):
+    """
+    This function is used for getting all test cases available in a formated dataframe before running.
+
+    Parameters
+    ----------
+    unit_test_cases_dir : str
+        Path string to the location of unit test cases path.
+    target_device_group : str or None
+        Name of device group that we want to run regression for. If None, run all found.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame that has all the targetted test cases that we need to run.
+    """
+    all_unit_test_cases_layout = sorted(
+        Path(unit_test_cases_dir).rglob("*.{}".format(SUPPORTED_TC_EXT))
+    )
+    logging.info(
+        "## Total number of gds files test cases found: {}".format(len(all_unit_test_cases_layout))
+    )
+
+    all_unit_test_cases_netlist = sorted(
+        Path(unit_test_cases_dir).rglob("*.{}".format(SUPPORTED_SPICE_EXT))
+    )
+    logging.info(
+        "## Total number of spice files test cases found: {}".format(len(all_unit_test_cases_netlist))
+    )
+
+    if len(all_unit_test_cases_netlist) != len(all_unit_test_cases_layout):
+        logging.error(
+            "## Each testcase should have Layout and Netlist file"
+        )
+        exit(1)
+
+    # Get test cases df from test cases
+    tc_df = pd.DataFrame({"test_layout_path": all_unit_test_cases_layout , "test_netlist_path": all_unit_test_cases_netlist})
+    tc_df["device_name"] = tc_df["test_layout_path"].apply(lambda x: x.name.replace(".gds", ""))
+    tc_df["device_group"] = tc_df["test_layout_path"].apply(lambda x: x.parent.parent.name.replace("_devices", "").upper())
+
+    if target_device_group is not None:
+        tc_df = tc_df[tc_df["device_group"] == target_device_group]
+    if len(tc_df) < 1:
+        logging.error("No test cases remaining after filtering.")
+        exit(1)
+
+    tc_df["run_id"] = range(len(tc_df))
+    return tc_df
+
+
+def get_switches(yaml_file, rule_name):
+    """Parse yaml file and extract switches data
+    Parameters
+    ----------
+    yaml_file : str
+            yaml config file path given py the user.
+    Returns
+    -------
+    yaml_dic : dictionary
+            dictionary containing switches data.
+    """
+
+    # load yaml config data
+    with open(yaml_file, "r") as stream:
+        try:
+            yaml_dic = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
+
+    return [f"{param}={value}" for param, value in yaml_dic[rule_name].items()]
+
+
+def run_test_case(
+    lvs_dir,
+    layout_path,
+    netlist_path,
+    run_dir,
+    device_name,
+):
+    """
+    This function run a single test case using the correct DRC file.
+
+    Parameters
+    ----------
+    lvs_dir : string or Path
+        Path to the location where all runsets exist.
+    layout_path : stirng or Path object
+        Path string to the layout of the test pattern we want to test.
+    netlist_path : stirng or Path object
+        Path string to the netlist of the test pattern we want to test.
+    run_dir : stirng or Path object
+        Path to the location where is the regression run is done.
+    device_name : string
+        Device name that we are running on.
+
+    Returns
+    -------
+    dict
+        A dict with all rule counts
+    """
+
+    # Get switches used for each run
+    sw_file = os.path.join(
+        Path(layout_path.parent).absolute(), f"{device_name}.{SUPPORTED_SW_EXT}"
+    )
+
+    if os.path.exists(sw_file):
+        switches = " ".join(get_switches(sw_file, device_name))
+    else:
+        # Get switches
+        switches = " -rd lvs_sub=sub!" if device_name == "sample_ggnfet_06v0_dss" else " -rd lvs_sub=vdd!" # default switch
+
+    # Creating run folder structure and copy testcases in it
+    pattern_clean = ".".join(os.path.basename(layout_path).split(".")[:-1])
+    output_loc = f"{run_dir}/{device_name}"
+    pattern_log = f"{output_loc}/{pattern_clean}_lvs.log"
+    os.makedirs(output_loc, exist_ok=True)
+    layout_path_run = os.path.join(run_dir, device_name, f"{device_name}.gds")
+    netlist_path_run = os.path.join(run_dir, device_name, f"{device_name}.cdl")
+    shutil.copyfile(layout_path, layout_path_run)
+    shutil.copyfile(netlist_path, netlist_path_run)
+
+    # command to run drc
+    call_str = f"klayout -b -r {lvs_dir}/gf180mcu.lvs -rd input={layout_path_run} -rd schematic={device_name}.cdl -rd report={device_name}.lvsdb  -rd target_netlist={device_name}_extracted.cir {switches} > {pattern_log} 2>&1"
 
     # Starting klayout run
-        try:
-            check_call(call_str, shell=True)
-        except Exception as e:
-            logging.error("%s generated an exception: %s" % (final_layout, e))
-            raise
+    try:
+        check_call(call_str, shell=True)
+    except Exception as e:
+        pattern_results = glob.glob(os.path.join(output_loc, f"{pattern_clean}*.lvsdb"))
+        if len(pattern_results) < 1:
+            logging.error("%s generated an exception: %s" % (pattern_clean, e))
+            traceback.print_exc()
+            raise Exception("Failed DRC run.")
 
-        if os.path.exists(pattern_log):
-            with open(pattern_log) as result_file:
-                result = result_file.read()
-            if "Congratulations! Netlists match" in result:
-                logging.info(f"{device_name} testcase passed: {testcase_type}")
-                pass_count += 1
-            else:
-                fail_count += 1
-                logging.error(f"{device_name} testcase failed.")
-                logging.error(f"Please recheck {layout_path} file.")
-                exit(1)
+    # dumping log into output to make CI have the log
+    if os.path.isfile(pattern_log):
+        with open(pattern_log, "r") as f:
+            result = f.read()
+            for line in f:
+                line = line.strip()
+                logging.info(f"{line}")
+
+    # checking device status
+        device_status = 'Failed'
+        if "Congratulations! Netlists match" in result:
+            logging.info(f"{device_name} testcase passed")
+            device_status = 'Passed'
         else:
-            logging.error("Klayout LVS run failed")
-            exit(1)
+            logging.error(f"{device_name} testcase failed.")
+            logging.error(f"Please recheck {layout_path} file.")
+    else:
+        logging.error("Klayout LVS run failed, there is no log file is generated")
+        exit(1)
 
-    logging.info("==================================")
-    logging.info(f"NO. OF PASSED {table} : {pass_count}")
-    logging.info(f"NO. OF FAILED {table} : {fail_count}")
-    logging.info("==================================\n")
+    return device_status
 
-    if fail_count > 0:
+
+def run_all_test_cases(tc_df, lvs_dir, run_dir, num_workers):
+    """
+    This function run all test cases from the input dataframe.
+
+    Parameters
+    ----------
+    tc_df : pd.DataFrame
+        DataFrame that holds all the test cases information for running.
+    lvs_dir : string or Path
+        Path string to the location of the lvs runsets.
+    run_dir : string or Path
+        Path string to the location of the testing code and output.
+    num_workers : int
+        Number of workers to use for running the regression.
+
+    Returns
+    -------
+    pd.DataFrame
+        A pandas DataFrame with all test cases information post running.
+    """
+
+    tc_df["device_status"] = "no status"
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
+        future_to_run_id = dict()
+        for i, row in tc_df.iterrows():
+            future_to_run_id[
+                executor.submit(
+                    run_test_case,
+                    lvs_dir,
+                    row["test_layout_path"],
+                    row["test_netlist_path"],
+                    run_dir,
+                    row["device_name"],
+                )
+            ] = row["run_id"]
+
+        for future in concurrent.futures.as_completed(future_to_run_id):
+            run_id = future_to_run_id[future]
+            try:
+                tc_df.loc[tc_df["run_id"] == run_id, "device_status"] =  future.result()
+            except Exception as exc:
+                logging.error("%d generated an exception: %s" % (run_id, exc))
+                traceback.print_exc()
+                tc_df.loc[tc_df["run_id"] == run_id, "device_status"] = "exception"
+
+    return tc_df
+
+
+def aggregate_results(
+    results_df: pd.DataFrame, devices_df: pd.DataFrame
+):
+    """
+    aggregate_results Aggregate the results for all runs.
+
+    Parameters
+    ----------
+    results_df : pd.DataFrame
+        Dataframe that holds the information about the unit test rules.
+    devices_df : pd.DataFrame
+        Dataframe that holds the information about all the devices implemented in the rule deck.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame that has all data analysis aggregated into one.
+    """
+    if len(devices_df) < 1 and len(results_df) < 1:
+        logging.error("## There are no rules for analysis or run.")
+        exit(1)
+    elif len(devices_df) < 1 and len(results_df) > 0:
+        df = results_df
+    elif len(devices_df) > 0 and len(results_df) < 1:
+        df = devices_df
+    else:
+        df = results_df.merge(devices_df, how="outer", on=["device_group", "device_name"])
+
+    df.loc[(df["device_status"] != 'Passed'), "device_status"] = "Failed"
+
+    return df
+
+
+def run_regression(lvs_dir, output_path, target_device_group, cpu_count):
+    """
+    Running Regression Procedure.
+
+    This function runs the full regression on all test cases.
+
+    Parameters
+    ----------
+    lvs_dir : string
+        Path string to the LVS directory where all the LVS files are located.
+    output_path : str
+        Path string to the location of the output results of the run.
+    target_device_group : str or None
+        Name of device group that we want to run regression for. If None, run all found.
+    cpu_count : int
+        Number of cpus to use in running testcases.
+    Returns
+    -------
+    bool
+        If all regression passed, it returns true. If any of the rules failed it returns false.
+    """
+
+    ## Parse Existing Rules
+    devices_df = parse_existing_devices(lvs_dir, output_path, target_device_group)
+    logging.info(
+        "## Total number of devices found in rule decks: {}".format(len(devices_df))
+    )
+    logging.info("## Parsed devices: \n" + str(devices_df))
+
+    ## Get all test cases available in the repo.
+    test_cases_path = os.path.join(lvs_dir, "testing/testcases")
+    unit_test_cases_path = os.path.join(test_cases_path, "unit")
+    tc_df = build_tests_dataframe(unit_test_cases_path, target_device_group)
+    logging.info("## Total table gds files found: {}".format(len(tc_df)))
+    logging.info("## Found testcases: \n" + str(tc_df))
+
+    ## Run all test cases.
+    results_df = run_all_test_cases(tc_df, lvs_dir, output_path, cpu_count)
+    logging.info("## Testcases found results: \n" + str(results_df))
+
+    ## Aggregate all dataframes into one
+    df = aggregate_results(results_df, devices_df)
+    df.drop_duplicates(inplace=True)
+    df.drop('run_id', inplace=True, axis=1)    
+    logging.info("## Final analysis table: \n" + str(df))
+
+    ## Generate error if there are any missing info or fails.
+    df.to_csv(os.path.join(output_path, "all_test_cases_results.csv"), index=False)
+
+    ## Check if there any rules that generated false positive or false negative
+    failing_results = df[~df["device_status"].isin(["Passed"])]
+    logging.info("## Failing test cases: \n" + str(failing_results))
+
+    if len(failing_results) > 0:
+        logging.error("## Some test cases failed .....")
         return False
     else:
+        logging.info("## All testcases passed.")
         return True
 
 
-def main(output_path, device):
+def main(lvs_dir, output_path, target_device_group):
     """
     Main Procedure.
 
@@ -158,183 +444,47 @@ def main(output_path, device):
 
     Parameters
     ----------
+    lvs_dir : str
+        Path string to the LVS directory where all the LVS files are located.
     output_path : str
         Path string to the location of the output results of the run.
-    device : str or None
-        Name of device that we want to run regression for.
+    target_device_group : str or None
+        Name of device group that we want to run regression for. If None, run all found.
     Returns
     -------
     bool
         If all regression passed, it returns true. If any of the rules failed it returns false.
     """
 
+    # No. of threads
+    cpu_count = os.cpu_count() if args["--mp"] is None else int(args["--mp"])
+
+    # Pandas printing setup
+    pd.set_option("display.max_columns", None)
+    pd.set_option("display.max_rows", None)
+    pd.set_option("max_colwidth", None)
+    pd.set_option("display.width", 1000)
+
+    # info logs for args
+    logging.info("## Run folder is: {}".format(run_name))
+    logging.info("## Target device is: {}".format(target_device_group))
+
+    # Start of execution time
+    t0 = time.time()
+
     ## Check Klayout version
     check_klayout_version()
 
-    # MOSFET devices
-    mos_devices = [
+    # Calling regression function
+    run_status = run_regression(lvs_dir, output_path, target_device_group, cpu_count)
 
-        ["sample_nfet_03v3"],
-        ["sample_nfet_03v3_dn"],
-        ["sample_nfet_05v0"],
-        ["sample_nfet_05v0_dn"],
-        ["sample_nfet_06v0"],
-        ["sample_nfet_06v0_dn"],
-        ["sample_nfet_06v0_nvt"],
-        ["sample_nfet_10v0_asym"],
-        ["sample_pfet_03v3"],
-        ["sample_pfet_03v3_dn"],
-        ["sample_pfet_05v0"],
-        ["sample_pfet_05v0_dn"],
-        ["sample_pfet_06v0"],
-        ["sample_pfet_06v0_dn"],
-        ["sample_pfet_10v0_asym"],
-
-    ]
-
-    # BJT
-    bjt_devices = [
-        ["npn_10p00x10p00"],
-        ["npn_05p00x05p00"],
-        ["npn_00p54x16p00"],
-        ["npn_00p54x08p00"],
-        ["npn_00p54x04p00"],
-        ["npn_00p54x02p00"],
-        ["pnp_10p00x10p00"],
-        ["pnp_05p00x05p00"],
-        ["pnp_10p00x00p42"],
-        ["pnp_05p00x00p42"],
-    ]
-
-    # Diode
-    diode_devices = [
-        ["diode_nd2ps_03v3"],
-        ["diode_nd2ps_03v3_dn"],
-        ["diode_nd2ps_06v0"],
-        ["diode_nd2ps_06v0_dn"],
-        ["diode_pd2nw_03v3"],
-        ["diode_pd2nw_03v3_dn"],
-        ["diode_pd2nw_06v0"],
-        ["diode_pd2nw_06v0_dn"],
-        ["diode_nw2ps_03v3"],
-        ["diode_nw2ps_06v0"],
-        ["diode_pw2dw_03v3"],
-        ["diode_pw2dw_06v0"],
-        ["diode_dw2ps_03v3"],
-        ["diode_dw2ps_06v0"],
-        ["sc_diode"],
-    ]
-
-    # Resistor
-    res_devices = [
-        ["pplus_u"],
-        ["nplus_s"],
-        ["pplus_u_dw"],
-        ["nplus_s_dw"],
-        ["pplus_s"],
-        ["pplus_s_dw"],
-        ["nplus_u_dw"],
-        ["nplus_u"],
-        ["nwell"],
-        ["pwell"],
-        ["ppolyf_s"],
-        ["ppolyf_u_3k", "-rd poly_res=3k"],
-        ["ppolyf_s_dw"],
-        ["ppolyf_u_1k", "-rd poly_res=1k"],
-        ["ppolyf_u_3k_6p0_dw", "-rd poly_res=3k"],
-        ["npolyf_u_dw"],
-        ["ppolyf_u_3k_dw", "-rd poly_res=3k"],
-        ["ppolyf_u_3k_6p0", "-rd poly_res=3k"],
-        ["npolyf_s"],
-        ["ppolyf_u_1k_6p0_dw", "-rd poly_res=1k"],
-        ["ppolyf_u"],
-        ["npolyf_u"],
-        ["ppolyf_u_2k_dw", "-rd poly_res=2k"],
-        ["npolyf_s_dw"],
-        ["ppolyf_u_2k_6p0_dw", "-rd poly_res=2k"],
-        ["ppolyf_u_2k_6p0", "-rd poly_res=2k"],
-        ["ppolyf_u_dw"],
-        ["ppolyf_u_1k_6p0", "-rd poly_res=1k"],
-        ["ppolyf_u_2k", "-rd poly_res=2k"],
-        ["ppolyf_u_1k_dw", "-rd poly_res=1k"],
-        ["rm1"],
-        ["rm2"],
-        ["rm3"],
-        ["tm6k", "-rd metal_top=6K"],
-        ["tm9k", "-rd metal_top=9K"],
-        ["tm30k", "-rd metal_top=30K"],
-        ["tm11k", "-rd metal_top=11K"],
-    ]
-
-    # MIM Capacitor
-    mimcap_devices = [
-        ["cap_mim_1f0_m2m3_noshield", "-rd mim_option=A -rd metal_level=3LM -rd mim_cap=1"],
-        ["cap_mim_1f5_m2m3_noshield", "-rd mim_option=A -rd metal_level=3LM -rd mim_cap=1.5"],
-        ["cap_mim_2f0_m2m3_noshield", "-rd mim_option=A -rd metal_level=3LM -rd mim_cap=2"],
-        ["cap_mim_1f0_m3m4_noshield", "-rd mim_option=B -rd metal_level=4LM -rd mim_cap=1"],
-        ["cap_mim_1f5_m3m4_noshield", "-rd mim_option=B -rd metal_level=4LM -rd mim_cap=1.5"],
-        ["cap_mim_2f0_m3m4_noshield", "-rd mim_option=B -rd metal_level=4LM -rd mim_cap=2"],
-        ["cap_mim_1f0_m4m5_noshield", "-rd mim_option=B -rd metal_level=5LM -rd mim_cap=1"],
-        ["cap_mim_1f5_m4m5_noshield", "-rd mim_option=B -rd metal_level=5LM -rd mim_cap=1.5"],
-        ["cap_mim_2f0_m4m5_noshield", "-rd mim_option=B -rd metal_level=5LM -rd mim_cap=2"],
-        ["cap_mim_1f0_m5m6_noshield", "-rd mim_option=B -rd metal_level=6LM -rd mim_cap=1"],
-        ["cap_mim_1f5_m5m6_noshield", "-rd mim_option=B -rd metal_level=6LM -rd mim_cap=1.5"],
-        ["cap_mim_2f0_m5m6_noshield", "-rd mim_option=B -rd metal_level=6LM -rd mim_cap=2"]
-    ]
-
-    # MOS Capacitor
-    moscap_devices = [
-        ["cap_pmos_03v3_b"],
-        ["cap_nmos_03v3_b"],
-        ["cap_nmos_03v3"],
-        ["cap_nmos_06v0_b"],
-        ["cap_pmos_06v0_dn"],
-        ["cap_nmos_06v0"],
-        ["cap_pmos_03v3_dn"],
-        ["cap_pmos_06v0"],
-        ["cap_nmos_03v3_dn"],
-        ["cap_pmos_06v0_b"],
-        ["cap_pmos_03v3"],
-        ["cap_nmos_06v0_dn"],
-    ]
-
-    # ESD (SAB MOSFET)
-    mos_sab_devices = [
-        ["sample_pfet_05v0_dss"],
-        ["sample_nfet_05v0_dss"],
-        ["sample_pfet_03v3_dn_dss"],
-        ["sample_pfet_03v3_dss"],
-        ["sample_pfet_05v0_dn_dss"],
-        ["sample_nfet_06v0_dss"],
-        ["sample_pfet_06v0_dn_dss"],
-        ["sample_nfet_06v0_dn_dss"],
-        ["sample_nfet_03v3_dn_dss"],
-        ["sample_nfet_05v0_dn_dss"],
-        ["sample_nfet_03v3_dss"],
-        ["sample_pfet_06v0_dss"],
-    ]
-
-    # eFuse
-    efuse_devices = [["efuse"]]
-
-    all_devices = {"MOS": mos_devices, "BJT": bjt_devices, "DIODE": diode_devices,
-                   "RES": res_devices, "MIMCAP": mimcap_devices, "MOSCAP": moscap_devices,
-                   "MOS_SAB": mos_sab_devices, "EFUSE": efuse_devices}
-
-    # Starting LVS regression
-    run_status = False
-
-    if device in all_devices :
-        logging.info(f"Running Global Foundries 180nm MCU LVS regression on {device}")
-        run_status = lvs_check(output_path, f"{device} DEVICES", all_devices[device])
-    else:
-        logging.error("Allowed devices are (MOS, BJT, DIODE, RES, MIMCAP, MOSCAP, MOS_SAB, EFUSE) only")
-        exit(1)
+    #  End of execution time
+    logging.info("Total execution time {}s".format(time.time() - t0))
 
     if run_status:
-        logging.info("LVS regression test completed successfully.")
+        logging.info("Test completed successfully.")
     else:
-        logging.error("LVS regression test failed.")
+        logging.error("Test failed.")
         exit(1)
 
 
@@ -345,7 +495,7 @@ if __name__ == "__main__":
 
     # arguments
     run_name = args["--run_name"]
-    device = args["--device"]
+    target_device_group = args["--device_name"]
 
     if run_name is None:
         # logs format
@@ -353,6 +503,7 @@ if __name__ == "__main__":
 
     # Paths of regression dirs
     testing_dir = os.path.dirname(os.path.abspath(__file__))
+    lvs_dir = os.path.dirname(testing_dir)
     output_path = os.path.join(testing_dir, run_name)
 
     # Creating output dir
@@ -370,4 +521,4 @@ if __name__ == "__main__":
     )
 
     # Calling main function
-    run_status = main(output_path, device)
+    run_status = main(lvs_dir, output_path, target_device_group)

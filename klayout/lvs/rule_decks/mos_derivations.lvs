@@ -1,0 +1,86 @@
+################################################################################################
+# Copyright 2022 GlobalFoundries PDK Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################################
+
+#==================================
+# ------ MOSFET DERIVATIONS -------
+#==================================
+
+logger.info('Starting MOSFET DERIVATIONS')
+
+# ==============
+# ---- PMOS ----
+# ==============
+logger.info('Starting PMOS layers DERIVATIONS')
+
+# 3.3V PMOS transistor outside DNWELL
+pgate_3p3v = pgate.not(v5_xtor).not(dualgate).not(dnwell).not(sab).not_interacting(mos_cap_mk)
+
+# 5V PMOS transistor outside DNWELL
+pgate_5v = pgate.and(v5_xtor).and(dualgate).not(dnwell).not(sab).not_interacting(mos_cap_mk)
+
+# 6V PMOS transistor outside DNWELL
+pgate_6v = pgate.not(v5_xtor).and(dualgate).not(nat).not(ldmos_xtor).not(dnwell).not(sab).not_interacting(mos_cap_mk)
+
+# 3.3V PMOS transistor inside DNWELL
+pgate_3p3v_dw = pgate_dw.not(v5_xtor).not(dualgate).not(sab).not_interacting(mos_cap_mk)
+
+# 5V PMOS transistor inside DNWELL
+pgate_5v_dw = pgate_dw.and(v5_xtor).and(dualgate).not(sab).not_interacting(mos_cap_mk)
+
+# 6V PMOS transistor inside DNWELL
+pgate_6v_dw = pgate_dw.not(v5_xtor).and(dualgate).not(nat).not(ldmos_xtor).not(sab).not_interacting(mos_cap_mk)
+
+# LDPMOS transistor
+pgate_ldmos = pgate_dw.interacting(mvpsd).not(v5_xtor).and(dualgate)
+                      .and(ldmos_xtor).and(dnwell).not(mvpsd).not_interacting(mos_cap_mk)
+pd_ldmos    = psd_dw.not(v5_xtor).and(dualgate).and(ldmos_xtor).and(dnwell).and(mvpsd)
+ps_ldmos    = psd_dw.not(v5_xtor).and(dualgate).and(ldmos_xtor).and(dnwell).not(mvpsd)
+psd_ldmos   = pcomp.not(v5_xtor).and(dualgate).and(ldmos_xtor).and(dnwell)
+                   .interacting(mvpsd).sized(0.29.um).sized(-0.29.um).extents.not(pgate_ldmos)
+
+# ==============
+# ---- NMOS ----
+# ==============
+logger.info('Starting NMOS layers DERIVATIONS')
+
+# 3.3V NMOS transistor outside DNWELL
+ngate_3p3v = ngate.not(v5_xtor).not(dualgate).not(dnwell).not(sab).not_interacting(mos_cap_mk)
+
+# 5V NMOS transistor outside DNWELL
+ngate_5v = ngate.and(v5_xtor).and(dualgate).not(dnwell).not(sab).not_interacting(mos_cap_mk)
+
+# 6V NMOS transistor outside DNWELL
+ngate_6v = ngate.not(v5_xtor).and(dualgate).not(nat).not(ldmos_xtor).not(dnwell).not(sab).not_interacting(mos_cap_mk)
+
+# 3.3V NMOS transistor inside DNWELL
+ngate_3p3v_dw = ngate_dw.not(v5_xtor).not(dualgate).not(sab).not_interacting(mos_cap_mk)
+
+# 5V NMOS transistor inside DNWELL
+ngate_5v_dw = ngate_dw.and(v5_xtor).and(dualgate).not(sab).not_interacting(mos_cap_mk)
+
+# 6V NMOS transistor inside DNWELL
+ngate_6v_dw = ngate_dw.not(v5_xtor).and(dualgate).not(nat).not(ldmos_xtor).not(sab).not_interacting(mos_cap_mk)
+
+# Native Vt NMOS transistor
+ngate_nat = ngate.not(v5_xtor).and(dualgate).and(nat).not_interacting(mos_cap_mk)
+
+# LDNMOS transistor
+ngate_ldmos = ngate.interacting(mvsd).not(v5_xtor).and(dualgate)
+                   .and(ldmos_xtor).not(dnwell).not(mvsd).not_interacting(mos_cap_mk)
+nd_ldmos    = ncomp.not(ngate).not(v5_xtor).and(dualgate).and(ldmos_xtor).not(dnwell).and(mvsd)
+ns_ldmos    = nsd.not(v5_xtor).and(dualgate).and(ldmos_xtor).not(dnwell).not(mvsd)
+nsd_ldmos   = ncomp.not(v5_xtor).and(dualgate).and(ldmos_xtor).not(dnwell)
+                   .interacting(mvsd).sized(0.37.um).sized(-0.37.um).extents.not(ngate_ldmos)
