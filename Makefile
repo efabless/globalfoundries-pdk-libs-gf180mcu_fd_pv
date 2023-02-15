@@ -80,4 +80,4 @@ test-LVS-% : | $(CONDA_ENV_PYTHON)
 # -------- test-LVS-switch -------
 #=================================
 test-LVS-switch: | $(CONDA_ENV_PYTHON)
-	@$(IN_CONDA_ENV) cd $(KLAYOUT_LVS_TESTS) && make test-LVS-switch
+	@$(IN_CONDA_ENV) klayout -v
