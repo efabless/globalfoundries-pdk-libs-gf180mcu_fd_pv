@@ -84,14 +84,14 @@ diode_pd2nw_06v0_dn_terminal_n = nwell_mv.and(dnwell).interacting(ncomp)
                                          .not(diode_pd2nw_exclude)
 
 # diode_nw2ps_03v3 diode
-diode_nw2ps_03v3_terminal_p = pcomp_lv.and(well_diode_mk).not(diode_exclude)
-diode_nw2ps_03v3_terminal_n = well_diode_mk.covering(nwell_lv.covering(ncomp))
-                                           .not(diode_exclude)
+diode_nw2ps_03v3_terminal_meas = nwell_lv.covering(ncomp).and(well_diode_mk).not(diode_exclude)
+diode_nw2ps_03v3_terminal_cath = pcomp_lv.and(well_diode_mk).not(diode_exclude)
+diode_nw2ps_03v3_terminal_mk = well_diode_mk.covering(pcomp_lv).not(diode_exclude)
 
 # diode_nw2ps_06v0 diode
-diode_nw2ps_06v0_terminal_p = pcomp_mv.and(well_diode_mk).not(diode_exclude)
-diode_nw2ps_06v0_terminal_n = well_diode_mk.covering(nwell_mv.covering(ncomp))
-                                           .not(diode_exclude)
+diode_nw2ps_06v0_terminal_meas = nwell_mv.covering(ncomp).and(well_diode_mk).not(diode_exclude)
+diode_nw2ps_06v0_terminal_cath = pcomp_mv.and(well_diode_mk).not(diode_exclude)
+diode_nw2ps_06v0_terminal_mk = well_diode_mk.covering(pcomp_mv).not(diode_exclude)
 
 # diode_pw2dw_03v3 diode
 diode_pw2dw_exclude = nwell.join(diode_exclude)
@@ -118,4 +118,4 @@ sc_diode_exclude = dualgate.join(pplus).join(diode_mk)
                            .join(esd_mk).join(lvs_source).join(diode_exclude)
 
 sc_diode_terminal_n = ncomp.and(dnwell).and(schottky_diode).not(sc_diode_exclude)
-sc_diode_terminal_p = metal1.and(dnwell).not_interacting(sc_diode_terminal_n).not(sc_diode_exclude)
+sc_diode_terminal_p = metal1.and(dnwell).and(comp).not_interacting(sc_diode_terminal_n).not(sc_diode_exclude)

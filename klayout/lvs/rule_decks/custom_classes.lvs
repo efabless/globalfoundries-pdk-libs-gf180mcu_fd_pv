@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 ################################################################################################
 # Copyright 2023 GlobalFoundries PDK Authors
 #
@@ -63,6 +65,35 @@ class SubcircuitModelsReader < RBA::NetlistSpiceReaderDelegate
       device.set_parameter('P', ((params['W'] || 0.0) + (params['L'] || 0.0)) * (params['M'] || 1.0)  * 2e6)
       device.set_parameter('C', (params['C'] || 0.0))
 
+    when 'D'
+      error('diode needs two nodes') if nets.size != 2
+
+      # provide a device class
+      cls = circuit.netlist.device_class_by_name(model)
+      unless cls
+        cls = RBA::DeviceClassDiode.new
+        cls.name = model
+        circuit.netlist.add(cls)
+      end
+
+      # create a device
+      device = circuit.create_device(cls, name)
+
+      # and configure the device
+      diode_ter = model.downcase.include?('diode_nw2ps') ? %w[C A] : %w[A C]
+      diode_ter.each_with_index do |t, index|
+        device.connect_terminal(t, nets[index])
+      end
+
+      # Support using "Area, Pj" params in the netlist & Support w,l for schottky_diode
+      if model.downcase.include?('sc_diode')
+        device.set_parameter('A', ((params['W'] || 0.0) * (params['L'] || 0.0)  * (params['M'] || 1.0)) * 1e12)
+        device.set_parameter('P', ((params['W'] || 0.0) + (params['L'] || 0.0)) * (params['M'] || 1.0)  * 2e6)
+      else
+        device.set_parameter('A', ((params['A'] || params['AREA'] || 0.0) * (params['M'] || 1.0) * 1e12))
+        device.set_parameter('P', ((params['P'] || params['PJ'] || 0.0) * (params['M'] || 1.0) * 1e6))
+      end
+
     when 'R'
       case nets.size
       when 3
@@ -118,7 +149,7 @@ class SubcircuitModelsReader < RBA::NetlistSpiceReaderDelegate
   end
 end
 
-# 4 terminals resistor device extractor
+# 4 terminals resistor device class
 class BResistor < RBA::DeviceClassResistorWithBulk
   def initialize
     super
@@ -128,7 +159,7 @@ class BResistor < RBA::DeviceClassResistorWithBulk
   end
 end
 
-# 3 terminals resistor device extractor
+# 3 terminals resistor device class
 class NResistor < RBA::DeviceClassResistor
   def initialize
     super
@@ -138,7 +169,7 @@ class NResistor < RBA::DeviceClassResistor
   end
 end
 
-# MosCap device extractor
+# MosCap device class
 class MosCap < RBA::DeviceClassCapacitor
   def initialize
     super
@@ -148,11 +179,25 @@ class MosCap < RBA::DeviceClassCapacitor
   end
 end
 
-# MIMCAP device extractor
+# MIMCAP device class
 class MIMCap < RBA::DeviceClassCapacitor
   def initialize
     super
     enable_parameter('C', false)
+    enable_parameter('A', true)
+    enable_parameter('P', true)
+  end
+end
+
+# Diode device class
+class EnDiode < RBA::DeviceClassDiode
+  def initialize
+    super
+    # 5% percent tolerance for A/P diode:
+    diode_params_tole = RBA::EqualDeviceParameters::new(RBA::DeviceClassDiode::PARAM_A, 0.0, 0.05)
+    diode_params_tole += RBA::EqualDeviceParameters::new(RBA::DeviceClassDiode::PARAM_P, 0.0, 0.05)
+    self.equal_parameters = diode_params_tole
+
     enable_parameter('A', true)
     enable_parameter('P', true)
   end

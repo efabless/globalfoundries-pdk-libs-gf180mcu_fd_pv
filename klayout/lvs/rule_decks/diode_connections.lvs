@@ -49,12 +49,14 @@ connect(diode_pd2nw_06v0_dn_terminal_p, contact)
 connect(diode_pd2nw_06v0_dn_terminal_n, ntap)
 
 # diode_nw2ps_03v3 diode
-connect(diode_nw2ps_03v3_terminal_p, contact)
-connect(diode_nw2ps_03v3_terminal_n, nwell)
+connect(diode_nw2ps_03v3_terminal_meas, nwell_con)
+connect(diode_nw2ps_03v3_terminal_mk, diode_nw2ps_03v3_terminal_cath)
+connect(diode_nw2ps_03v3_terminal_cath, contact)
 
 # diode_nw2ps_06v0 diode
-connect(diode_nw2ps_06v0_terminal_p, contact)
-connect(diode_nw2ps_06v0_terminal_n, nwell)
+connect(diode_nw2ps_06v0_terminal_meas, nwell_con)
+connect(diode_nw2ps_06v0_terminal_mk, diode_nw2ps_06v0_terminal_cath)
+connect(diode_nw2ps_06v0_terminal_cath, contact)
 
 # diode_pw2dw_03v3 diode
 connect(diode_pw2dw_03v3_terminal_p, contact)
@@ -69,5 +71,5 @@ connect(diode_dw2ps_03v3_terminal_p, ptap)
 connect(diode_dw2ps_06v0_terminal_p, ptap)
 
 # sc_diode diode
-connect(sc_diode_terminal_n, contact)
-connect(sc_diode_terminal_p, schottky_diode)
+connect(sc_diode_terminal_p, contact)
+connect(sc_diode_terminal_n, schottky_diode)
